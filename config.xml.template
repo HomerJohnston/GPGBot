@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+<!--=========================================================================================-->
+
+	<webserver>
+		<host>123.456.789.101</host>
+		<port>9000</port>
+		<key>passphrase</key>
+	</webserver>
+
+	<chatClient>
+		<name>discord</name>
+		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
+		<defaultChannelId>000000000000000000</defaultChannelId>
+	</chatClient>
+
+	<continuousIntegration>
+		<name>jenkins</name> <!-- must be either 'jenkins' or 'teamcity' -->
+		<address>http://serveraddress.port</address>
+		<user>ciloginuser</user>
+		<password></password>
+		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
+	</continuousIntegration>
+
+	<versionControl>
+		<name>perforce</name>
+		<address>serveraddress:port</address>
+		<user>perforceusername</user>
+		<password>perforceuserpassword</password>
+	</versionControl>
+
+	<!--
+	<actionSpec name="Name">
+		<newChange>
+			<postWebhook url="https://discord.com/api/webhooks/123456789"/>
+			<build config="ConfigName">
+					<postChannelID>1234</postChannelID>
+			</build>
+		</newChange>
+	</actionSpec>
+	-->
+
+<!--=========================================================================================-->
+</config>
+
+
+<!--
+	Perforce		Git
+	Change #		Commit Hash
+	User 			User
+-->
