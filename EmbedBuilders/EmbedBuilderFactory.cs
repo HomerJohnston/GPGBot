@@ -17,11 +17,11 @@ namespace GPGBot.EmbedBuilders
 				throw (new Exception("CI Address was null! Check config?"));
 			}
 
-			switch (chatConfig.Name)
+			switch (chatConfig.System)
 			{
 				case EChatClient.Discord:
 				{
-					switch (ciConfig.Name)
+					switch (ciConfig.System)
 					{
 						case EContinuousIntegrationSoftware.Jenkins:
 						{

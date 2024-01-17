@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<Target Name="CustomPostPublish" AfterTargets="Publish">
-		<Exec Command="start X:\GPGBot\Deploy.bat"/>
+		<Exec Command="start X:\GPGBot\Deploy.bat" />
 	</Target>
 	
   <PropertyGroup>
@@ -51,7 +51,6 @@
 
   <ItemGroup>
     <Folder Include="EmbedBuilders\SlackEmbedBuilders\" />
-    <Folder Include="Tests\" />
   </ItemGroup>
 
 </Project>

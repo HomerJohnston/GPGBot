@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 
 namespace GPGBot.VersionControlSystems
 {
-    internal interface IVersionControlSystem
-    {
+	public interface IVersionControlSystem
+	{
+		string? GetStream(string? change, string? client);
 
-    }
+		string? GetCommitDescription(string? change);
+	}
 }

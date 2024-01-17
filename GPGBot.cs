@@ -171,33 +171,75 @@ namespace GPGBot
 			await context.Response.Send("Request denied.");
 		}
 
+		// Master goals:
+		// - We want to post commits to the project's main development stream
+		// - We want to launch build processes if the commit contains code files
+		// - We want to ignore commits that are made by CI processes
+
+		// Perforce process:
+		// Is the committed stream of interest to us? (e.g. Megacity-Mainline)
+		// If yes, is the command type of interest to us? (e.g. change-commit)
+
 		// --------------------------------------
 		async Task OnCommit(HttpContextBase context)
 		{
+			if (versionControlSystem == null)
+			{
+				throw new Exception();
+			}
+
 			var queryParams = GetQueryParams(context);
 
-			string? change = queryParams["change"];
-			string? client = queryParams["client"];
-			string? root = queryParams["root"];
-			string? user = queryParams["user"];
-			string? address = queryParams["address"];
-			string? stream = queryParams["stream"]; // branch? tag? for git?
-			string? type = queryParams["type"];
-			
-			// Master goals:
-			// - We want to post commits to the project's main development stream
-			// - We want to launch build processes if the commit contains code files
-			// - We want to ignore commits that are made by CI processes
+			string change = queryParams["change"] ?? string.Empty;
+			string client = queryParams["client"] ?? string.Empty;
+			string root = queryParams["root"] ?? string.Empty;
+			string user = queryParams["user"] ?? string.Empty;
+			string address = queryParams["address"] ?? string.Empty;
+			string branch = queryParams["branch"] ?? string.Empty; // branch is used for potential git compatibility only; p4 triggers %stream% is bugged and cannot send stream name
+			string type = queryParams["type"] ?? string.Empty;
 
-			// Perforce process:
-			// Is the committed stream of interest to us? (e.g. Megacity-Mainline)
-			// If yes, is the command type of interest to us? (e.g. change-commit)
+			string stream = string.Empty;
 
-			Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", change, client, root, user, address, stream, type);
+			// workaround for p4 trigger bug no stream name capability
+			if (branch == string.Empty)
+			{
+				stream = versionControlSystem?.GetStream(change, client) ?? string.Empty;
+			}
 
-			await continuousIntegrationSystem.StartBuild("Test_TestDefaultBC");
+			Console.WriteLine("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, branch {5}, type {6}", change, client, root, user, address, branch, type);
 
-			await context.Response.Send("Remote ran OnNewCommit");
+			CommitEmbedData commitEmbedData = new CommitEmbedData();
+			commitEmbedData.change = change;
+			commitEmbedData.user = user;
+			commitEmbedData.stream = branch;
+			commitEmbedData.client = client;
+			commitEmbedData.description = versionControlSystem.GetCommitDescription(change);
+
+			switch (type)
+			{
+				case "code":
+				{
+
+					//await continuousIntegrationSystem.StartBuild("Test_TestDefaultBC");
+					Console.WriteLine("Posting code build request");
+					break;
+				}
+				case "content":
+				{
+					Console.WriteLine("Posting commit message");
+					chatClient.PostCommitMessage(commitEmbedData);
+					break;
+				}
+				default:
+				{
+					Console.WriteLine("Wtfbbq");
+					break;
+				}
+			}
+
+
+			context.Response.StatusCode = 200;
+			await context.Response.Send(string.Format("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, stream {5}, type {6}", change, client, root, user, address, branch, type));
 		}
 
 		// --------------------------------------

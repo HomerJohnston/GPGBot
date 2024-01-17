@@ -15,6 +15,6 @@ namespace GPGBot.EmbedBuilders
 
 		string GetChangesURL(string buildConfigName, int buildID);
 
-		Embed BuildEmbed(BuildStatusEmbedData embedData);//int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName);
+		Embed ConstructBuildStatusEmbed(BuildStatusEmbedData embedData);//int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName);
 	}
 }

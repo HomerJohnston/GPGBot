@@ -8,13 +8,6 @@ namespace GPGBot.Config
 {
 	// ============================================================================================
 
-	public class App
-	{
-		public string? Address { get; set; }
-	}
-
-	// ============================================================================================
-
 	public class Webserver
 	{
 		public string? Host { get; set; }
@@ -26,16 +19,17 @@ namespace GPGBot.Config
 
 	public class ChatClient
 	{
-		public EChatClient? Name { get; set; }
+		public EChatClient? System { get; set; }
 		public string? Token { get; set; }
-		public ulong? defaultChannelID { get; set; }
+		public ulong? defaultBuildStatusChannel { get; set; }
+		public string? defaultCommitWebhook { get; set; }
 	}
 
 	// ============================================================================================
 
 	public class ContinuousIntegration
 	{
-		public EContinuousIntegrationSoftware Name { get; set; }
+		public EContinuousIntegrationSoftware System { get; set; }
 		public string? Address { get; set; }
 		public string? User { get; set; }
 		public string? Password { get; set; }
@@ -46,16 +40,25 @@ namespace GPGBot.Config
 
 	public class VersionControl
 	{
-		public EVersionControlSystem Name { get; set; }
+		public EVersionControlSystem System { get; set; }
 		public string? Address { get; set; }
 		public string? User { get; set; }
 		public string? Password { get; set; }
 	}
 
 	// ============================================================================================
-	/*
-		internal class ActionSpec
-		{
-		}
-	*/
+	
+	public class Spec
+	{
+		public string? Branch { get; set; }
+		public string? Stream { get; set; }
+		public string? Build { get; set; }
+		public ulong? BuildStatusChannel { get; set; }
+		public string? CommitWebhook { get; set; }
+	}
+
+	public class ActionsList
+	{
+		public List<Spec>? Spec { get; set; }
+	}
 }

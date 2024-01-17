@@ -94,17 +94,18 @@ namespace GPGBot
 				.AddXmlFile(configSource, false, false)
 				.Build();
 
-			Config.App appConfig = new();
 			Config.Webserver webserverConfig = new();
 			Config.ChatClient chatClientConfig = new();
 			Config.ContinuousIntegration continuousIntegrationConfig = new();
 			Config.VersionControl versionControlConfig = new();
+			Config.ActionsList actions = new();
 
-			config.GetSection("app").Bind(appConfig);
-			config.GetSection("webserver").Bind(webserverConfig);
+
+		config.GetSection("webserver").Bind(webserverConfig);
 			config.GetSection("chatClient").Bind(chatClientConfig);
 			config.GetSection("continuousIntegration").Bind(continuousIntegrationConfig);
 			config.GetSection("versionControl").Bind(versionControlConfig);
+			config.GetSection("actions").Bind(actions);
 
 			IVersionControlSystem vcs = GetVersionControlSystem(versionControlConfig);
 			IContinuousIntegrationSystem cis = GetContinuousIntegrationSystem(continuousIntegrationConfig);
@@ -123,7 +124,7 @@ namespace GPGBot
 		// --------------------------------------
 		private IVersionControlSystem GetVersionControlSystem(Config.VersionControl config)
 		{
-			switch (config.Name)
+			switch (config.System)
 			{
 				case EVersionControlSystem.Perforce:
 				{
@@ -141,7 +142,7 @@ namespace GPGBot
 		// --------------------------------------
 		private IContinuousIntegrationSystem GetContinuousIntegrationSystem(Config.ContinuousIntegration config)
 		{
-			switch (config.Name)
+			switch (config.System)
 			{
 				case EContinuousIntegrationSoftware.Jenkins:
 				{
@@ -161,7 +162,7 @@ namespace GPGBot
 		{
 			IEmbedBuilder embedBuilder = EmbedBuilderFactory.Build(chatClientConfig, ciConfig);
 
-			switch (chatClientConfig.Name)
+			switch (chatClientConfig.System)
 			{
 				case EChatClient.Discord:
 				{

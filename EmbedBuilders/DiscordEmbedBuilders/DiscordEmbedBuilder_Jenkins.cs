@@ -31,7 +31,7 @@ namespace GPGBot.EmbedBuilders.DiscordEmbedBuilders
             return consoleURL;
         }
 
-        public Embed BuildEmbed(BuildStatusEmbedData embedData)//int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName)
+        public Embed ConstructBuildStatusEmbed(BuildStatusEmbedData embedData)//int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName)
         {
             string buildWebURL = GetBuildURL(embedData.buildConfig);
             string buildConsoleURL = string.Format("{0}/{1}/{2}", buildWebURL, embedData.buildID, "console");

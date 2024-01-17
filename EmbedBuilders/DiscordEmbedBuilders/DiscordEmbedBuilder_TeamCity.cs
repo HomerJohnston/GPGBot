@@ -25,7 +25,7 @@ namespace GPGBot.EmbedBuilders.DiscordEmbedBuilders
             throw new NotImplementedException();
         }
 
-        public Embed BuildEmbed(BuildStatusEmbedData embedData)// int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName)
+        public Embed ConstructBuildStatusEmbed(BuildStatusEmbedData embedData)// int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName)
         {
             throw new NotImplementedException();
         }

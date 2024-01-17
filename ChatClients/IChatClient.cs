@@ -19,5 +19,7 @@ namespace GPGBot.ChatClients
 		Task<ulong> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong channelID = 0);// string buildConfig, ulong buildID, string status, string iconURL, Color color, string description, string changeID, string byUser);
 
 		Task DeleteMessage(ulong messageID, ulong channelID = 0);
+
+		Task<ulong> PostCommitMessage(CommitEmbedData embedData, string commitWebhook = "");
 	}
 }

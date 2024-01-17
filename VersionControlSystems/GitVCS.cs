@@ -12,5 +12,15 @@ namespace GPGBot.VersionControlSystems
 		{
 			throw new NotImplementedException();
 		}
+
+		public string? GetCommitDescription(string? change)
+		{
+			throw new NotImplementedException();
+		}
+
+		public string? GetStream(string? change, string? client)
+		{
+			throw new NotImplementedException();
+		}
 	}
 }

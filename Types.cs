@@ -49,4 +49,13 @@ namespace GPGBot
 		public string changeID;
 		public string commitBy;
 	}
+
+	public struct CommitEmbedData
+	{
+		public string change;
+		public string stream;
+		public string user;
+		public string client;
+		public string description;
+	}
 }

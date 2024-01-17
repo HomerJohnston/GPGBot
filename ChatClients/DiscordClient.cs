@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.Webhook;
 using Discord.WebSocket;
 using GPGBot.EmbedBuilders;
 using System;
@@ -11,19 +12,22 @@ namespace GPGBot.ChatClients
 {
 	internal class DiscordClient : IChatClient
 	{
-		Config.ChatClient config;
+		readonly Config.ChatClient config;
 
-		DiscordSocketClient client;
+		readonly DiscordSocketClient client;
 
-		IEmbedBuilder embedBuilder;
+		readonly IEmbedBuilder embedBuilder;
 
-		ulong defaultChannelID;
+		readonly ulong defaultChannelID;
+
+		readonly string defaultCommitWebhook;
 
 		public DiscordClient(Config.ChatClient inConfig, IEmbedBuilder inEmbedBuilder)
 		{
 			config = inConfig;
 			embedBuilder = inEmbedBuilder;
-			defaultChannelID = inConfig.defaultChannelID ?? 0;
+			defaultChannelID = inConfig.defaultBuildStatusChannel ?? 0;
+			defaultCommitWebhook = inConfig.defaultCommitWebhook ?? string.Empty;
 
 			DiscordSocketConfig clientConfig = new DiscordSocketConfig();
 			client = new DiscordSocketClient(clientConfig);
@@ -65,7 +69,7 @@ namespace GPGBot.ChatClients
 				channelID = defaultChannelID;
 			}
 
-			Embed e = embedBuilder.BuildEmbed(embedData);
+			Embed e = embedBuilder.ConstructBuildStatusEmbed(embedData);
 
 			if (client.GetChannel(channelID) is IMessageChannel messageChannel)
 			{
@@ -100,6 +104,45 @@ namespace GPGBot.ChatClients
 			}
 
 			await Task.CompletedTask;
+		}
+
+		public async Task<ulong> PostCommitMessage(CommitEmbedData embedData, string commitWebhook = "")
+		{
+			if (commitWebhook == string.Empty)
+			{
+				commitWebhook = defaultCommitWebhook;
+			}
+
+			DiscordWebhookClient webhookClient = new(commitWebhook);
+
+			string titleText = string.Format("Change {0}  \u2022  {1}", embedData.change, embedData.client);
+
+			EmbedBuilder builder = new EmbedBuilder()
+				.WithAuthor(titleText, "https://i.imgur.com/TzA17kl.png")
+				.WithDescription(embedData.description);
+
+			Embed e = builder.Build();
+
+			List<Embed> embeds = new List<Embed>() { e };
+
+			return await webhookClient.SendMessageAsync(null, false, embeds);
+
+
+			/*
+			EmbedBuilder embedBuilder = new EmbedBuilder()
+				.WithAuthor(embedData.user);
+
+			Embed e = embedBuilder.Build();
+
+			if (client.GetChannel(channelID) is IMessageChannel channel)
+			{
+				IUserMessage sentMessage = await channel.SendMessageAsync("Test text!", false, e);
+
+				return sentMessage.Id;
+			}
+
+			return 0;
+			*/
 		}
 	}
 }
