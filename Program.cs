@@ -98,7 +98,7 @@ namespace GPGBot
 			Config.ChatClient chatClientConfig = new();
 			Config.ContinuousIntegration continuousIntegrationConfig = new();
 			Config.VersionControl versionControlConfig = new();
-			Config.ActionsList actions = new();
+			Config.Actions actions = new();
 
 
 		config.GetSection("webserver").Bind(webserverConfig);
@@ -111,7 +111,7 @@ namespace GPGBot
 			IContinuousIntegrationSystem cis = GetContinuousIntegrationSystem(continuousIntegrationConfig);
 			IChatClient chatClient = GetChatClient(chatClientConfig, versionControlConfig, continuousIntegrationConfig);
 
-			bot = new(vcs, cis, chatClient, webserverConfig);
+			bot = new(vcs, cis, chatClient, webserverConfig, actions);
 			bot.Run();
 
 			Console.WriteLine("\n" +

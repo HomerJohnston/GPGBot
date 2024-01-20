@@ -57,7 +57,7 @@ namespace GPGBot.Config
 		public string? CommitWebhook { get; set; }
 	}
 
-	public class ActionsList
+	public class Actions
 	{
 		public List<Spec>? Spec { get; set; }
 	}

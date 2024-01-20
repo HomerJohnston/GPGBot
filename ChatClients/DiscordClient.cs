@@ -113,9 +113,17 @@ namespace GPGBot.ChatClients
 				commitWebhook = defaultCommitWebhook;
 			}
 
+			Console.WriteLine("Posting commit message to... " + commitWebhook);
+
 			DiscordWebhookClient webhookClient = new(commitWebhook);
 
+			webhookClient.Log += LogTest;
+
+			Console.WriteLine("Created webhook client");
+
 			string titleText = string.Format("Change {0}  \u2022  {1}", embedData.change, embedData.client);
+
+			Console.WriteLine(titleText);
 
 			EmbedBuilder builder = new EmbedBuilder()
 				.WithAuthor(titleText, "https://i.imgur.com/TzA17kl.png")
@@ -143,6 +151,13 @@ namespace GPGBot.ChatClients
 
 			return 0;
 			*/
+		}
+
+		private Task LogTest(LogMessage message)
+		{
+			Console.WriteLine(message.ToString());
+
+			return Task.CompletedTask;
 		}
 	}
 }

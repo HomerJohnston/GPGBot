@@ -35,15 +35,28 @@ namespace GPGBot.VersionControlSystems
 
 		public string? GetCommitDescription(string? change)
 		{
+			Console.WriteLine("A");
 			int changeID;
 
+			Console.WriteLine("B");
 			if (int.TryParse(change, out changeID))
 			{
-				Changelist x = repo.GetChangelist(10);
+				Console.WriteLine("C");
+
+				if (!connection.Connect(null))
+				{
+					throw new Exception("Failed to connect to perforce server - is it inactive or did your ticket expire?");
+				}
+
+				Changelist x = repo.GetChangelist(changeID);
+				
+				Console.WriteLine(x.Description);
+
 				return x.Description;
 			}
 			else 
 			{
+				Console.WriteLine("D");
 				return "NULL";
 			}
 		}

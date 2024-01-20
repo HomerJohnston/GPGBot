@@ -35,7 +35,7 @@ namespace GPGBot
 		public TaskCompletionSource<bool> runComplete = new();
 
 		// ---------------------------------------------------------------
-		public GPGBot(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, Config.Webserver webserverConfig) 
+		public GPGBot(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, Config.Webserver webserverConfig, Config.Actions actions) 
 		{
 			versionControlSystem = inVCS;
 			continuousIntegrationSystem = inCI;
@@ -183,6 +183,8 @@ namespace GPGBot
 		// --------------------------------------
 		async Task OnCommit(HttpContextBase context)
 		{
+			Console.WriteLine("OnCommit start");
+
 			if (versionControlSystem == null)
 			{
 				throw new Exception();
@@ -208,6 +210,8 @@ namespace GPGBot
 
 			Console.WriteLine("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, branch {5}, type {6}", change, client, root, user, address, branch, type);
 
+			Console.WriteLine("Wow, what should we do next batman");
+
 			CommitEmbedData commitEmbedData = new CommitEmbedData();
 			commitEmbedData.change = change;
 			commitEmbedData.user = user;
@@ -215,19 +219,28 @@ namespace GPGBot
 			commitEmbedData.client = client;
 			commitEmbedData.description = versionControlSystem.GetCommitDescription(change);
 
+			Console.WriteLine("Wow, it worked?");
+
+			// TODO: error handling.. config errors throw annoying HTTP error "it's not you it's me" error messages
+
 			switch (type)
 			{
 				case "code":
 				{
+					Console.WriteLine("Attempting to build...");
 
-					//await continuousIntegrationSystem.StartBuild("Test_TestDefaultBC");
+					await continuousIntegrationSystem.StartBuild("Test_TestDefaultBC");
+					
 					Console.WriteLine("Posting code build request");
+					
+					await chatClient.PostCommitMessage(commitEmbedData);
+
 					break;
 				}
 				case "content":
 				{
 					Console.WriteLine("Posting commit message");
-					chatClient.PostCommitMessage(commitEmbedData);
+					await chatClient.PostCommitMessage(commitEmbedData);
 					break;
 				}
 				default:
@@ -237,6 +250,7 @@ namespace GPGBot
 				}
 			}
 
+			Console.WriteLine("Wow, end of teh function!!!");
 
 			context.Response.StatusCode = 200;
 			await context.Response.Send(string.Format("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, stream {5}, type {6}", change, client, root, user, address, branch, type));
