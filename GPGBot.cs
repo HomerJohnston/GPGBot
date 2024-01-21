@@ -11,23 +11,18 @@ using WatsonWebserver.Extensions.HostBuilderExtension;
 
 namespace GPGBot
 {
-	internal class CommitSpec
-	{
-
-	}
-
 	internal class GPGBot
 	{
-		IVersionControlSystem? versionControlSystem;
-		IContinuousIntegrationSystem? continuousIntegrationSystem;
-		IChatClient? chatClient;
+		IVersionControlSystem versionControlSystem;
+		IContinuousIntegrationSystem continuousIntegrationSystem;
+		IChatClient chatClient;
 
-		WebserverBase? webserver;
+		WebserverBase webserver;
 		string? webserverKey;
 
 		Dictionary<ulong, object?> activeEmbeds = new();
 
-		Dictionary<string, CommitSpec> commitSpecs = new();
+		List<Config.ActionSpec> actionSpecs = new();
 		readonly Dictionary<int, BuildRecord> buildRecords = new();
 
 		public bool bShutdownRequested = false;
@@ -35,7 +30,7 @@ namespace GPGBot
 		public TaskCompletionSource<bool> runComplete = new();
 
 		// ---------------------------------------------------------------
-		public GPGBot(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, Config.Webserver webserverConfig, Config.Actions actions) 
+		public GPGBot(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, Config.Webserver webserverConfig, Config.Actions actions)
 		{
 			versionControlSystem = inVCS;
 			continuousIntegrationSystem = inCI;
@@ -48,6 +43,17 @@ namespace GPGBot
 			if (continuousIntegrationSystem == null) throw new Exception("Invalid ContinuousIntegrationSystem! Check config?");
 			if (chatClient == null) throw new Exception("Invalid ChatClient! Check config?");
 			if (webserver == null) throw new Exception("Invalid Webserver! Check config?");
+
+			/*
+			if (actions.Spec != null)
+			{
+				//actionSpecs = actions.Spec;
+			}
+			else
+			{
+				Console.WriteLine("Warning: no action specs found!");
+			}
+			*/
 		}
 
 		public void Run()
@@ -64,17 +70,12 @@ namespace GPGBot
 
 		Webserver BuildWebServer(Config.Webserver serverConfig)
 		{
-			if (serverConfig.Host == string.Empty)
-			{
-				throw new Exception("Invalid webserver host! Check config?");
-			}
-
 			if (serverConfig.Port == null)
 			{
 				throw new Exception("Invalid webserver port! Check config?");
 			}
 
-			HostBuilder hostBuilder = new HostBuilder(serverConfig.Host, (int)serverConfig.Port, false, DefaultRoute)
+			HostBuilder hostBuilder = new HostBuilder("localhost", (int)serverConfig.Port, false, DefaultRoute)
 				.MapAuthenticationRoute(AuthenticateRequest)
 				.MapParameteRoute(HttpMethod.POST, "/on-commit", OnCommit, true) // Handles triggers from source control system
 				.MapParameteRoute(HttpMethod.POST, "/build-status-update", OnBuildStatusUpdate, true) // Handles status updates from continuous integration
@@ -210,43 +211,56 @@ namespace GPGBot
 
 			Console.WriteLine("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, branch {5}, type {6}", change, client, root, user, address, branch, type);
 
-			Console.WriteLine("Wow, what should we do next batman");
-
-			CommitEmbedData commitEmbedData = new CommitEmbedData();
-			commitEmbedData.change = change;
-			commitEmbedData.user = user;
-			commitEmbedData.stream = branch;
-			commitEmbedData.client = client;
-			commitEmbedData.description = versionControlSystem.GetCommitDescription(change);
-
-			Console.WriteLine("Wow, it worked?");
-
 			// TODO: error handling.. config errors throw annoying HTTP error "it's not you it's me" error messages
 
-			switch (type)
+			foreach (Config.ActionSpec spec in actionSpecs)
 			{
-				case "code":
+				if (spec.Stream == stream || spec.Branch == branch)
 				{
-					Console.WriteLine("Attempting to build...");
+					CommitEmbedData commitEmbedData = new CommitEmbedData();
+					commitEmbedData.change = change;
+					commitEmbedData.user = user;
+					commitEmbedData.stream = branch;
+					commitEmbedData.client = client;
 
-					await continuousIntegrationSystem.StartBuild("Test_TestDefaultBC");
-					
-					Console.WriteLine("Posting code build request");
-					
-					await chatClient.PostCommitMessage(commitEmbedData);
+					try
+					{
+						commitEmbedData.description = versionControlSystem.GetCommitDescription(change);
+					}
+					catch
+					{
+						throw new Exception("Failed to get commit description!");
+					}
 
-					break;
-				}
-				case "content":
-				{
-					Console.WriteLine("Posting commit message");
-					await chatClient.PostCommitMessage(commitEmbedData);
-					break;
-				}
-				default:
-				{
-					Console.WriteLine("Wtfbbq");
-					break;
+					switch (type)
+					{
+						case "code":
+						{
+							string? build = spec.BuildConfigName;
+
+							if (build != null)
+							{
+								await continuousIntegrationSystem.StartBuild(build);
+							}
+
+							await chatClient.PostCommitMessage(commitEmbedData);
+
+							break;
+						}
+						case "content":
+						{
+
+							Console.WriteLine("Posting commit message");
+							await chatClient.PostCommitMessage(commitEmbedData);
+							break;
+						}
+						default:
+						{
+							Console.WriteLine("Wtfbbq");
+							break;
+						}
+					}
+
 				}
 			}
 

@@ -21,8 +21,8 @@ namespace GPGBot.ContinuousIntegration
 				throw new ArgumentException("Continuous Integration address not set!");
 			}
 
-			Uri uriResult;
-			bool result = Uri.TryCreate(config.Address, UriKind.Absolute, out uriResult)
+
+			bool result = Uri.TryCreate(config.Address, UriKind.Absolute, out Uri? uriResult)
 				&& (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
 
 			if (!result)

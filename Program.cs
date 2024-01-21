@@ -94,24 +94,41 @@ namespace GPGBot
 				.AddXmlFile(configSource, false, false)
 				.Build();
 
+			// Create config containers
 			Config.Webserver webserverConfig = new();
 			Config.ChatClient chatClientConfig = new();
-			Config.ContinuousIntegration continuousIntegrationConfig = new();
-			Config.VersionControl versionControlConfig = new();
-			Config.Actions actions = new();
+			Config.ContinuousIntegration ciConfig = new();
+			Config.VersionControl vcsConfig = new();
+			Config.Actions actionsConfig = new();
 
+			// Bind config containers & assign type
+			IConfigurationSection discordSection = config.GetSection("discord");
+			IConfigurationSection slackSection = config.GetSection("slack");
+			Bind(discordSection, slackSection, chatClientConfig);
+			chatClientConfig.System = (discordSection.Exists() ? EChatClient.Discord : EChatClient.Slack);
 
-		config.GetSection("webserver").Bind(webserverConfig);
-			config.GetSection("chatClient").Bind(chatClientConfig);
-			config.GetSection("continuousIntegration").Bind(continuousIntegrationConfig);
-			config.GetSection("versionControl").Bind(versionControlConfig);
-			config.GetSection("actions").Bind(actions);
+			IConfigurationSection teamcitySection = config.GetSection("teamcity");
+			IConfigurationSection jenkinsSection = config.GetSection("jenkins");
+			Bind(teamcitySection, jenkinsSection, ciConfig);
+			ciConfig.System = (teamcitySection.Exists() ? EContinuousIntegrationSoftware.TeamCity : EContinuousIntegrationSoftware.Jenkins);
 
-			IVersionControlSystem vcs = GetVersionControlSystem(versionControlConfig);
-			IContinuousIntegrationSystem cis = GetContinuousIntegrationSystem(continuousIntegrationConfig);
-			IChatClient chatClient = GetChatClient(chatClientConfig, versionControlConfig, continuousIntegrationConfig);
+			IConfigurationSection perforceSection = config.GetSection("perforce");
+			IConfigurationSection gitSection = config.GetSection("git");
+			Bind(perforceSection, gitSection, vcsConfig);
+			vcsConfig.System = (perforceSection.Exists() ? EVersionControlSystem.Perforce : EVersionControlSystem.Git);
 
-			bot = new(vcs, cis, chatClient, webserverConfig, actions);
+			IConfigurationSection webserverSection = config.GetSection("webserver");
+			Bind(webserverSection, webserverConfig);
+
+			IConfigurationSection actionsSection = config.GetSection("actions");
+			Bind(actionsSection, actionsConfig);
+
+			// Spawn systems
+			IChatClient chatClient = CreateChatClient(chatClientConfig, ciConfig);
+			IVersionControlSystem vcs = CreateVersionControlSystem(vcsConfig);
+			IContinuousIntegrationSystem cis = CreateContinuousIntegrationSystem(ciConfig);
+
+			bot = new(vcs, cis, chatClient, webserverConfig, actionsConfig);
 			bot.Run();
 
 			Console.WriteLine("\n" +
@@ -121,8 +138,37 @@ namespace GPGBot
 			await bot.runComplete.Task;
 		}
 
+		private void Bind<T>(IConfigurationSection A, IConfigurationSection B, T destination)
+		{
+			if (A.Exists() && B.Exists())
+			{
+				throw new Exception("Found both " + A.Key.ToString() + " and " + B.Key.ToString() + " configs, there must only be one!");
+			}
+			else if (!A.Exists() && !B.Exists())
+			{
+				throw new Exception("Did not find either a " + A.Key.ToString() + " config or a " + B.Key.ToString() + " config!");
+			}
+			else
+			{
+				IConfigurationSection Section = (A.Exists()) ? A : B;
+				Section.Bind(destination);
+			}
+		}
+
+		private void Bind<T>(IConfigurationSection Section, T destination)
+		{
+			if (!Section.Exists())
+			{
+				throw new Exception("Did not find " + Section.Key.ToString() + " config!");
+			}
+			else
+			{
+				Section.Bind(destination);
+			}
+		}
+
 		// --------------------------------------
-		private IVersionControlSystem GetVersionControlSystem(Config.VersionControl config)
+		private IVersionControlSystem CreateVersionControlSystem(Config.VersionControl config)
 		{
 			switch (config.System)
 			{
@@ -140,7 +186,7 @@ namespace GPGBot
 		}
 
 		// --------------------------------------
-		private IContinuousIntegrationSystem GetContinuousIntegrationSystem(Config.ContinuousIntegration config)
+		private IContinuousIntegrationSystem CreateContinuousIntegrationSystem(Config.ContinuousIntegration config)
 		{
 			switch (config.System)
 			{
@@ -158,7 +204,7 @@ namespace GPGBot
 		}
 
 		// --------------------------------------
-		private IChatClient GetChatClient(Config.ChatClient chatClientConfig, Config.VersionControl vcsConfig, Config.ContinuousIntegration ciConfig)
+		private IChatClient CreateChatClient(Config.ChatClient chatClientConfig, Config.ContinuousIntegration ciConfig)
 		{
 			IEmbedBuilder embedBuilder = EmbedBuilderFactory.Build(chatClientConfig, ciConfig);
 

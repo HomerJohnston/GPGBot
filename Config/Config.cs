@@ -10,7 +10,6 @@ namespace GPGBot.Config
 
 	public class Webserver
 	{
-		public string? Host { get; set; }
 		public int? Port { get; set; }
 		public string? Key { get; set; }
 	}
@@ -47,18 +46,24 @@ namespace GPGBot.Config
 	}
 
 	// ============================================================================================
-	
-	public class Spec
+
+	public class ActionSpec
 	{
 		public string? Branch { get; set; }
 		public string? Stream { get; set; }
-		public string? Build { get; set; }
-		public ulong? BuildStatusChannel { get; set; }
+		public string? BuildConfigName { get; set; }
+		public ulong? BuildPostChannel { get; set; }
 		public string? CommitWebhook { get; set; }
+	}
+
+	public class WTF
+	{
+		public List<ActionSpec?>? Spec { get; set; }
 	}
 
 	public class Actions
 	{
-		public List<Spec>? Spec { get; set; }
+		public string? TestData { get; set; }
+		public WTF? Specs { get; set; }
 	}
 }

@@ -11,14 +11,13 @@ namespace GPGBot.VersionControlSystems
 {
 	public class PerforceVCS : IVersionControlSystem
 	{
-		Server server;
-		Repository repo;
-		Connection connection;
+		Server server = null!;
+		Repository repo = null!;
+		Connection connection = null!;
+		Credential credential = null!;
 
-		Credential credential;
-
-		string address;
-		string user;
+		readonly string address;
+		readonly string user;
 		
 		public PerforceVCS(Config.VersionControl config)
 		{

@@ -3,31 +3,53 @@
 <!--=========================================================================================-->
 
 	<webserver>
-		<host>123.456.789.101</host>
 		<port>9000</port>
 		<key>passphrase</key>
 	</webserver>
 
-	<chatClient>
-		<name>discord</name>
+	<!-- erase this section if not using discord -->
+	<discord>
 		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
-		<defaultChannelId>000000000000000000</defaultChannelId>
-	</chatClient>
+		<defaultBuildStatusChannel>1234</defaultBuildStatusChannel>
+		<defaultCommitWebhook>https://discord.com/api/webhooks/webhookurl</defaultCommitWebhook>
+	</discord>
 
-	<continuousIntegration>
-		<name>jenkins</name> <!-- must be either 'jenkins' or 'teamcity' -->
+	<!-- erase this section if not using slack -->
+	<slack>
+		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
+		<defaultBuildStatusChannel>1234</defaultBuildStatusChannel>
+		<defaultCommitWebhook>https://discord.com/api/webhooks/webhookurl</defaultCommitWebhook>
+	</slack>
+
+	<!-- erase this section if not using teamcity -->
+	<teamcity>
 		<address>http://serveraddress.port</address>
 		<user>ciloginuser</user>
 		<password></password>
 		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
-	</continuousIntegration>
+	</teamcity>
 
-	<versionControl>
-		<name>perforce</name>
+	<!-- erase this section if not using jenkins -->
+	<jenkins>
+		<address>http://serveraddress.port</address>
+		<user>ciloginuser</user>
+		<password></password>
+		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
+	</jenkins>
+
+	<!-- erase this section if not using git -->
+	<git>
 		<address>serveraddress:port</address>
 		<user>perforceusername</user>
 		<password>perforceuserpassword</password>
-	</versionControl>
+	</git>
+
+	<!-- erase this section if not using perforce -->
+	<perforce>
+		<address>serveraddress:port</address>
+		<user>perforceusername</user>
+		<password>perforceuserpassword</password>
+	</perforce>
 
 	<!--
 	<actionSpec name="Name">
@@ -42,10 +64,3 @@
 
 <!--=========================================================================================-->
 </config>
-
-
-<!--
-	Perforce		Git
-	Change #		Commit Hash
-	User 			User
--->
