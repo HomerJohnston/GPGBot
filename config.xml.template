@@ -51,16 +51,10 @@
 		<password>perforceuserpassword</password>
 	</perforce>
 
-	<!--
-	<actionSpec name="Name">
-		<newChange>
-			<postWebhook url="https://discord.com/api/webhooks/123456789"/>
-			<build config="ConfigName">
-					<postChannelID>1234</postChannelID>
-			</build>
-		</newChange>
-	</actionSpec>
-	-->
+	<actions>
+		<spec stream="//Megacity/TestingMainline" buildConfigName="Megacity-TestBuild" buildPostChannel="default" commitWebhook="default"/>
+		<spec stream="//Megacity/Other" buildConfigName="Megacity-Other" buildPostChannel="default" commitWebhook="default"/>
+	</actions>
 
 <!--=========================================================================================-->
 </config>
