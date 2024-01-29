@@ -27,7 +27,7 @@
     </ItemGroup>
 
 	<ItemGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <Content Include="Config.xml">
+      <Content Include="config.xml">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
     </ItemGroup>

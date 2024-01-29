@@ -43,8 +43,6 @@ namespace GPGBot
 		public string buildConfig;
 		public ulong buildID;
 		public EBuildStatus buildStatus;
-		public string buildIconURL;
-		public Discord.Color color;
 		public string text;
 		public string changeID;
 		public string commitBy;
@@ -53,7 +51,7 @@ namespace GPGBot
 	public struct CommitEmbedData
 	{
 		public string change;
-		public string stream;
+		public string branch;
 		public string user;
 		public string client;
 		public string description;

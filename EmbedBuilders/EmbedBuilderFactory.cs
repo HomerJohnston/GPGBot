@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace GPGBot.EmbedBuilders
 {
-	internal class EmbedBuilderFactory
+	public class EmbedBuilderFactory
 	{
 		public static IEmbedBuilder Build(Config.ChatClient chatConfig, Config.ContinuousIntegration ciConfig)
 		{

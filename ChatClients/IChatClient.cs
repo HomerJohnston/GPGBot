@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace GPGBot.ChatClients
 {
-	internal interface IChatClient
+	public interface IChatClient
 	{
 		/** Starts the chat client (aka bot) */
 		Task Start();
@@ -16,10 +16,10 @@ namespace GPGBot.ChatClients
 		Task Stop();
 
 		/** Post an embed, return a generic handle to the message */
-		Task<ulong> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong channelID = 0);// string buildConfig, ulong buildID, string status, string iconURL, Color color, string description, string changeID, string byUser);
+		Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong? channelID = null);// string buildConfig, ulong buildID, string status, string iconURL, Color color, string description, string changeID, string byUser);
 
-		Task DeleteMessage(ulong messageID, ulong channelID = 0);
+		Task DeleteMessage(ulong messageID, ulong? channelID = null);
 
-		Task<ulong> PostCommitMessage(CommitEmbedData embedData, string commitWebhook = "");
+		Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string? commitWebhook = null);
 	}
 }

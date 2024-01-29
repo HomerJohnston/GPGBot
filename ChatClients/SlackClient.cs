@@ -6,19 +6,19 @@ using System.Threading.Tasks;
 
 namespace GPGBot.ChatClients
 {
-	internal class SlackClient : IChatClient
+	public class SlackClient : IChatClient
 	{
-		public Task DeleteMessage(ulong messageID, ulong channelID = 0)
+		public Task DeleteMessage(ulong messageID, ulong? channelID = null)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<ulong> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong channelID = 0)
+		public Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong? channelID = null)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<ulong> PostCommitMessage(CommitEmbedData embedData, string commitWebhook = "")
+		public Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string? commitWebhook = null)
 		{
 			throw new NotImplementedException();
 		}

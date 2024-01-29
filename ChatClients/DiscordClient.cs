@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace GPGBot.ChatClients
 {
-	internal class DiscordClient : IChatClient
+	public class DiscordClient : IChatClient
 	{
 		readonly Config.ChatClient config;
 
@@ -21,6 +21,8 @@ namespace GPGBot.ChatClients
 		readonly ulong defaultChannelID;
 
 		readonly string defaultCommitWebhook;
+
+		bool clientReady = false;
 
 		public DiscordClient(Config.ChatClient inConfig, IEmbedBuilder inEmbedBuilder)
 		{
@@ -41,14 +43,29 @@ namespace GPGBot.ChatClients
 			}
 
 			client.Log += Log;
-			
+
+			client.Ready += OnClientReady;
+
 			await client.LoginAsync(TokenType.Bot, config.Token);
 			await client.StartAsync();
+
+			while (!clientReady)
+			{
+				await Task.Delay(50);
+			}
+		}
+
+		private Task OnClientReady()
+		{
+			clientReady = true;
+			return Task.CompletedTask;
 		}
 
 		public async Task Stop()
 		{
-            if (client != null)
+			clientReady = false;
+
+			if (client != null)
             {
 				await client.LogoutAsync();
 				await client.StopAsync();
@@ -62,27 +79,37 @@ namespace GPGBot.ChatClients
 			await Task.CompletedTask;
 		}
 
-		public async Task<ulong> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong channelID)
+		public async Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong? channelID = null)
 		{
-			if (channelID == 0)
+			if (channelID == null)
 			{
 				channelID = defaultChannelID;
 			}
 
-			Embed e = embedBuilder.ConstructBuildStatusEmbed(embedData);
+			IChannel channel = client.GetChannel((ulong)channelID);
 
-			if (client.GetChannel(channelID) is IMessageChannel messageChannel)
+			if (channel == null)
 			{
+				Console.WriteLine($"channel {channelID} not found!");
+			}
+			else
+			{
+				Console.WriteLine($"channel {channelID} found!");
+			}
+
+			if (channel is IMessageChannel messageChannel)
+			{
+				Embed e = embedBuilder.ConstructBuildStatusEmbed(embedData);
 				IUserMessage sentMessage = await messageChannel.SendMessageAsync("Test Text!", false, e);
 				return sentMessage.Id;
 			}
-			
-			return 0;
+
+			return null;
 		}
 
-		public async Task DeleteMessage(ulong messageID, ulong channelID = 0)
+		public async Task DeleteMessage(ulong messageID, ulong? channelID = null)
 		{
-			if (channelID == 0)
+			if (channelID == null)
 			{
 				channelID = defaultChannelID;
 			}
@@ -93,7 +120,7 @@ namespace GPGBot.ChatClients
 				throw new Exception("Invalid channel ID!");
 			}
 
-			if (client.GetChannel(channelID) is IMessageChannel messageChannel)
+			if (client.GetChannel((ulong)channelID) is IMessageChannel messageChannel)
 			{
 				RequestOptions options = new RequestOptions();
 				await messageChannel.DeleteMessageAsync(messageID);
@@ -106,24 +133,18 @@ namespace GPGBot.ChatClients
 			await Task.CompletedTask;
 		}
 
-		public async Task<ulong> PostCommitMessage(CommitEmbedData embedData, string commitWebhook = "")
+		public async Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string? commitWebhook)
 		{
-			if (commitWebhook == string.Empty)
+			if (commitWebhook == null || commitWebhook == string.Empty)
 			{
 				commitWebhook = defaultCommitWebhook;
 			}
 
-			Console.WriteLine("Posting commit message to... " + commitWebhook);
-
 			DiscordWebhookClient webhookClient = new(commitWebhook);
 
-			webhookClient.Log += LogTest;
-
-			Console.WriteLine("Created webhook client");
+			webhookClient.Log += ConsoleLog;
 
 			string titleText = string.Format("Change {0}  \u2022  {1}", embedData.change, embedData.client);
-
-			Console.WriteLine(titleText);
 
 			EmbedBuilder builder = new EmbedBuilder()
 				.WithAuthor(titleText, "https://i.imgur.com/TzA17kl.png")
@@ -133,27 +154,12 @@ namespace GPGBot.ChatClients
 
 			List<Embed> embeds = new List<Embed>() { e };
 
-			return await webhookClient.SendMessageAsync(null, false, embeds);
+			ulong msgID = await webhookClient.SendMessageAsync(null, false, embeds);
 
-
-			/*
-			EmbedBuilder embedBuilder = new EmbedBuilder()
-				.WithAuthor(embedData.user);
-
-			Embed e = embedBuilder.Build();
-
-			if (client.GetChannel(channelID) is IMessageChannel channel)
-			{
-				IUserMessage sentMessage = await channel.SendMessageAsync("Test text!", false, e);
-
-				return sentMessage.Id;
-			}
-
-			return 0;
-			*/
+			return (msgID == 0) ? null : msgID;
 		}
 
-		private Task LogTest(LogMessage message)
+		private Task ConsoleLog(LogMessage message)
 		{
 			Console.WriteLine(message.ToString());
 

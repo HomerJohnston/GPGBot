@@ -1,20 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Web;
 using GPGBot.ChatClients;
+using GPGBot.CommandHandlers.P4;
 using GPGBot.ContinuousIntegration;
 using GPGBot.VersionControlSystems;
+using Perforce.P4;
 using WatsonWebserver;
 using WatsonWebserver.Core;
 using WatsonWebserver.Extensions.HostBuilderExtension;
 
 namespace GPGBot
 {
-	internal class GPGBot
+	internal class Bot
 	{
 		IVersionControlSystem versionControlSystem;
+		
 		IContinuousIntegrationSystem continuousIntegrationSystem;
+		
 		IChatClient chatClient;
 
 		WebserverBase webserver;
@@ -23,6 +29,7 @@ namespace GPGBot
 		Dictionary<ulong, object?> activeEmbeds = new();
 
 		List<Config.ActionSpec> actionSpecs = new();
+
 		readonly Dictionary<int, BuildRecord> buildRecords = new();
 
 		public bool bShutdownRequested = false;
@@ -30,7 +37,7 @@ namespace GPGBot
 		public TaskCompletionSource<bool> runComplete = new();
 
 		// ---------------------------------------------------------------
-		public GPGBot(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, Config.Webserver webserverConfig, Config.Actions actions)
+		public Bot(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, Config.Webserver webserverConfig, Config.Actions actions)
 		{
 			versionControlSystem = inVCS;
 			continuousIntegrationSystem = inCI;
@@ -44,16 +51,14 @@ namespace GPGBot
 			if (chatClient == null) throw new Exception("Invalid ChatClient! Check config?");
 			if (webserver == null) throw new Exception("Invalid Webserver! Check config?");
 
-			/*
 			if (actions.Spec != null)
 			{
-				//actionSpecs = actions.Spec;
+				actionSpecs = actions.Spec;
 			}
 			else
 			{
 				Console.WriteLine("Warning: no action specs found!");
 			}
-			*/
 		}
 
 		public void Run()
@@ -70,12 +75,29 @@ namespace GPGBot
 
 		Webserver BuildWebServer(Config.Webserver serverConfig)
 		{
-			if (serverConfig.Port == null)
+			string address = "*";
+
+			if (serverConfig.Address == null)
 			{
-				throw new Exception("Invalid webserver port! Check config?");
+				Console.WriteLine($"Webserver address is not configured. Defaulting to listen on any address.");
+			}
+			else
+			{
+				address = serverConfig.Address;
 			}
 
-			HostBuilder hostBuilder = new HostBuilder("localhost", (int)serverConfig.Port, false, DefaultRoute)
+			int port = 1199;
+
+			if (serverConfig.Port == null)
+			{
+				Console.WriteLine($"Webserver port is not configured. Defaulting to {port}.");
+			}
+			else
+			{
+				port = (int)serverConfig.Port;
+			}
+
+			HostBuilder hostBuilder = new HostBuilder(address, port, false, DefaultRoute)
 				.MapAuthenticationRoute(AuthenticateRequest)
 				.MapParameteRoute(HttpMethod.POST, "/on-commit", OnCommit, true) // Handles triggers from source control system
 				.MapParameteRoute(HttpMethod.POST, "/build-status-update", OnBuildStatusUpdate, true) // Handles status updates from continuous integration
@@ -85,60 +107,8 @@ namespace GPGBot
 			return hostBuilder.Build();
 		}
 
-		/*
-		public void AbortBuild()
-		{
-			throw new NotImplementedException();
-		}
-
-		public async Task void HandleCommit(string user, string commitID, string description, string spec)
-		{
-			CommitSpec? commitSpec = commitSpecs[spec];
-			
-			if (commitSpec == null)
-			{
-				return;
-			}
-		}
-
-		public Task HandleCommit()
-		{
-			throw new NotImplementedException();
-		}
-
-		public void StartBuild()
-		{
-			throw new NotImplementedException();
-		}
-
-		public async Task HandleBuildStatusUpdate(HttpContextBase context)
-		{
-			Console.WriteLine("Received build state update!");
-
-			await SendEmbed();
-
-			await Task.CompletedTask;
-		}
-
-		private IUserMessage? maesssag = null;
-
-
-		private async Task void SendEmbed()
-		{
-			
-			Embed testEmbed = embedBuilder.BuildEmbed(-1, "title", "", Color.Gold, "desc", 123, "user", "job");
-
-			ulong TESTCHANNELID = 191070133190524928;
-			if (discordClient.GetChannel(TESTCHANNELID) is IMessageChannel messageChannel)
-			{
-				IUserMessage msg = await messageChannel.SendMessageAsync("test text", false, testEmbed);
-				maesssag = msg;
-			}
-			
-		}
-		*/
-
 		// --------------------------------------
+		#region WebAuth
 		async Task AuthenticateRequest(HttpContextBase context)
 		{
 			if (webserverKey == null)
@@ -171,6 +141,7 @@ namespace GPGBot
 			context.Response.StatusCode = 401;
 			await context.Response.Send("Request denied.");
 		}
+		#endregion
 
 		// Master goals:
 		// - We want to post commits to the project's main development stream
@@ -184,11 +155,11 @@ namespace GPGBot
 		// --------------------------------------
 		async Task OnCommit(HttpContextBase context)
 		{
-			Console.WriteLine("OnCommit start");
-
 			if (versionControlSystem == null)
 			{
-				throw new Exception();
+				context.Response.StatusCode = 500;
+				await context.Response.Send(string.Format("OnCommit failed, no version control system configured!"));
+				throw new Exception("No version control system, cannot proceed!");
 			}
 
 			var queryParams = GetQueryParams(context);
@@ -201,73 +172,85 @@ namespace GPGBot
 			string branch = queryParams["branch"] ?? string.Empty; // branch is used for potential git compatibility only; p4 triggers %stream% is bugged and cannot send stream name
 			string type = queryParams["type"] ?? string.Empty;
 
-			string stream = string.Empty;
-
 			// workaround for p4 trigger bug no stream name capability
 			if (branch == string.Empty)
 			{
-				stream = versionControlSystem?.GetStream(change, client) ?? string.Empty;
+				branch = versionControlSystem.GetStream(change, client) ?? string.Empty;
 			}
 
-			Console.WriteLine("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, branch {5}, type {6}", change, client, root, user, address, branch, type);
+			Console.WriteLine($"OnCommit: change {NoneOr(change)}, client {NoneOr(client)}, root {NoneOr(root)}, user {NoneOr(user)}, address {NoneOr(address)}, branch {NoneOr(branch)}, type {NoneOr(type)}");
 
-			// TODO: error handling.. config errors throw annoying HTTP error "it's not you it's me" error messages
+			List<Config.ActionSpec> matchedSpecs = actionSpecs.FindAll(spec => spec.Stream == branch || spec.Branch == branch);
 
-			foreach (Config.ActionSpec spec in actionSpecs)
+			if (matchedSpecs.Count == 0)
 			{
-				if (spec.Stream == stream || spec.Branch == branch)
+				context.Response.StatusCode = 204;
+				await context.Response.Send(string.Format($"No matching action specs found! Ignoring this commit."));
+				Console.WriteLine("No matching action specs found! Ignoring this commit.");
+				return;
+			}
+
+			// If multiple build specs call for the commit to be posted, we only want to post it once
+			HashSet<string> commitPostedTo = new();
+
+			foreach (Config.ActionSpec spec in matchedSpecs)
+			{
+				if (spec.CommitWebhook != null && !commitPostedTo.Contains(spec.CommitWebhook))
 				{
-					CommitEmbedData commitEmbedData = new CommitEmbedData();
-					commitEmbedData.change = change;
-					commitEmbedData.user = user;
-					commitEmbedData.stream = branch;
-					commitEmbedData.client = client;
+					string? commitWebhook = (spec.CommitWebhook == "default") ? null : spec.CommitWebhook;
+					await PostCommit(change, user, branch, client, commitWebhook);
+					commitPostedTo.Add(spec.CommitWebhook);
+				}
 
-					try
+				switch (type)
+				{
+					case "code":
 					{
-						commitEmbedData.description = versionControlSystem.GetCommitDescription(change);
+						string? build = spec.BuildConfigName;
+
+						if (build != null)
+						{
+							bool result = await continuousIntegrationSystem.StartBuild(build);
+							Console.WriteLine($"Build {build} start result: {result}");
+						}
+						else
+						{
+							Console.WriteLine("Commit type was code, but no build config was specified - doing nothing!");
+						}
+						break;
 					}
-					catch
+					case "content":
 					{
-						throw new Exception("Failed to get commit description!");
+						break;
 					}
-
-					switch (type)
+					default:
 					{
-						case "code":
-						{
-							string? build = spec.BuildConfigName;
-
-							if (build != null)
-							{
-								await continuousIntegrationSystem.StartBuild(build);
-							}
-
-							await chatClient.PostCommitMessage(commitEmbedData);
-
-							break;
-						}
-						case "content":
-						{
-
-							Console.WriteLine("Posting commit message");
-							await chatClient.PostCommitMessage(commitEmbedData);
-							break;
-						}
-						default:
-						{
-							Console.WriteLine("Wtfbbq");
-							break;
-						}
+						break;
 					}
-
 				}
 			}
 
-			Console.WriteLine("Wow, end of teh function!!!");
-
 			context.Response.StatusCode = 200;
 			await context.Response.Send(string.Format("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, stream {5}, type {6}", change, client, root, user, address, branch, type));
+		}
+
+		private string NoneOr(string s)
+		{
+			if (s == string.Empty) return "NONE";
+
+			return s;
+		}
+
+		private async Task<ulong?> PostCommit(string change, string user, string branch, string client, string? commitWebhook = null)
+		{
+			CommitEmbedData commitEmbedData = new CommitEmbedData();
+			commitEmbedData.change = change;
+			commitEmbedData.user = user;
+			commitEmbedData.branch = branch;
+			commitEmbedData.client = client;
+
+			commitEmbedData.description = versionControlSystem.GetCommitDescription(change) ?? "<No description>";
+			return await chatClient.PostCommitMessage(commitEmbedData, commitWebhook);
 		}
 
 		// --------------------------------------
@@ -292,15 +275,15 @@ namespace GPGBot
 			data.text = "TestText";
 			data.buildConfig = "TestBuildConfig";
 
-			ulong msgID = await chatClient.PostBuildStatusEmbed(data);
+			ulong? msgID = await chatClient.PostBuildStatusEmbed(data);
 
-			if (msgID == 0)
+			if (msgID == null)
 			{
 				await context.Response.Send("Remote failed to run OnBuildStatusUpdate");
 			}
             else
             {
-				activeEmbeds.Add(msgID, null);
+				activeEmbeds.Add((ulong)msgID, null);
 				await context.Response.Send("Remote ran OnBuildStatusUpdate");
 			}
 		}

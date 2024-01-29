@@ -14,10 +14,11 @@ namespace GPGBot.VersionControlSystems
 		Server server = null!;
 		Repository repo = null!;
 		Connection connection = null!;
-		Credential credential = null!;
+		Credential? credential = null;
 
 		readonly string address;
 		readonly string user;
+		readonly string password;
 		
 		public PerforceVCS(Config.VersionControl config)
 		{
@@ -28,20 +29,17 @@ namespace GPGBot.VersionControlSystems
 
 			address = config.Address;
 			user = config.User;
+			password = config.Password;
 
 			InitializePerforce(address, user, config.Password);
 		}
 
 		public string? GetCommitDescription(string? change)
 		{
-			Console.WriteLine("A");
 			int changeID;
 
-			Console.WriteLine("B");
 			if (int.TryParse(change, out changeID))
 			{
-				Console.WriteLine("C");
-
 				if (!connection.Connect(null))
 				{
 					throw new Exception("Failed to connect to perforce server - is it inactive or did your ticket expire?");
@@ -49,31 +47,46 @@ namespace GPGBot.VersionControlSystems
 
 				Changelist x = repo.GetChangelist(changeID);
 				
-				Console.WriteLine(x.Description);
-
 				return x.Description;
 			}
 			else 
 			{
-				Console.WriteLine("D");
 				return "NULL";
 			}
 		}
 
 		public string? GetStream(string? change, string? client)
 		{
+			Console.WriteLine("GetStream(" + (change ?? "NULL CHANGE") + ", " + (client ?? "NULL CLIENT") + ")");
+			
 			connection.Client.Name = client;
 
-			if (!connection.Connect(null))
+			Console.WriteLine("Connection.UserName: " + connection.UserName.ToString());
+			Console.WriteLine("Connection.GetActiveTicket(): " + connection.GetActiveTicket());
+			Console.WriteLine("Connection.Server.Address: " + connection.Server.Address);
+
+			try
 			{
-				throw new Exception("Failed to connect to perforce server - is it inactive or did your ticket expire?");
+				Options o = new Options();
+				bool bResult = connection.Connect(null);
+
+				Console.WriteLine("Connected: " + bResult);
 			}
+			catch
+			{
+				Console.WriteLine("Failed to connect to perforce server - is it inactive or did your ticket expire?");
+				return null;
+			}
+
+			Console.WriteLine("Here's the connection stream we found: " + connection.Client.Stream);
 
 			return connection.Client.Stream;
 		}
 
-		private Task InitializePerforce(string address, string user, string password)
+		private Task InitializePerforce(string address, string user, string password, string? client = null)
 		{
+			Console.WriteLine($"Initializing perforce... {address}, {user}, {password}, {client??""}");
+
 			server = new Server(new ServerAddress(address));
 			repo = new Repository(server);
 			connection = repo.Connection;
@@ -81,10 +94,36 @@ namespace GPGBot.VersionControlSystems
 			connection.UserName = user;
 			connection.Client = new Client();
 
+			if (client != null) 
+			{
+				connection.Client.Name = client;
+			}
+
+			//Console.WriteLine("Connection.GetActiveTicket(): " + connection.GetActiveTicket());
+
 			connection.Connect(null);
 
+			Console.WriteLine("Connection.GetActiveTicket(): " + connection.GetActiveTicket());
 			// Grab a ticket. It is necessary that the bot user be assigned to a group with tickets that never expire!
-			credential = connection.Login(password, null, null);
+
+			credential = connection.Login(password, true);
+
+			if (credential == null)
+			{
+				Console.WriteLine("Credential is null");
+			}
+			else
+			{
+				Console.WriteLine("credential.Ticket: " + credential != null ? credential.Ticket : "NULL");
+			}
+
+			Console.WriteLine("Connection.GetActiveTicket(): " + connection.GetActiveTicket());
+
+			ServerMetaData smd = repo.GetServerMetaData(null);
+			ServerVersion v = smd.Version;
+			string release = v.Major;
+
+			Console.WriteLine("Server release: " + release);
 
 			return Task.CompletedTask;
 		}

@@ -1,24 +1,11 @@
-﻿using Discord;
-using Discord.WebSocket;
-using Perforce.P4;
-using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json.Linq;
-
-using WatsonWebserver;
-using WatsonWebserver.Core;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using System;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using System.Web;
-using WatsonWebserver.Extensions.HostBuilderExtension;
-using System.Threading;
-using GPGBot.CommandHandlers;
 using GPGBot.ContinuousIntegration;
 using GPGBot.VersionControlSystems;
 using System.Runtime.InteropServices;
 using GPGBot.ChatClients;
 using GPGBot.EmbedBuilders;
+using GPGBot.Config;
 
 namespace GPGBot
 {
@@ -46,6 +33,7 @@ namespace GPGBot
 			SetConsoleCtrlHandler(() => { return HandleClose(); }, true);
 #endif
 			Program program = new Program();
+
 			await program.ProgramMain();
 
 			Shutdown();
@@ -83,52 +71,21 @@ namespace GPGBot
 		// ========================================================================================
 		// State
 		// ========================================================================================
-		static GPGBot? bot;
+		static Bot? bot;
 
 		// ========================================================================================
 		// API
 		// ========================================================================================
 		async Task ProgramMain()
 		{
-			IConfigurationRoot config = new ConfigurationManager()
-				.AddXmlFile(configSource, false, false)
-				.Build();
-
-			// Create config containers
-			Config.Webserver webserverConfig = new();
-			Config.ChatClient chatClientConfig = new();
-			Config.ContinuousIntegration ciConfig = new();
-			Config.VersionControl vcsConfig = new();
-			Config.Actions actionsConfig = new();
-
-			// Bind config containers & assign type
-			IConfigurationSection discordSection = config.GetSection("discord");
-			IConfigurationSection slackSection = config.GetSection("slack");
-			Bind(discordSection, slackSection, chatClientConfig);
-			chatClientConfig.System = (discordSection.Exists() ? EChatClient.Discord : EChatClient.Slack);
-
-			IConfigurationSection teamcitySection = config.GetSection("teamcity");
-			IConfigurationSection jenkinsSection = config.GetSection("jenkins");
-			Bind(teamcitySection, jenkinsSection, ciConfig);
-			ciConfig.System = (teamcitySection.Exists() ? EContinuousIntegrationSoftware.TeamCity : EContinuousIntegrationSoftware.Jenkins);
-
-			IConfigurationSection perforceSection = config.GetSection("perforce");
-			IConfigurationSection gitSection = config.GetSection("git");
-			Bind(perforceSection, gitSection, vcsConfig);
-			vcsConfig.System = (perforceSection.Exists() ? EVersionControlSystem.Perforce : EVersionControlSystem.Git);
-
-			IConfigurationSection webserverSection = config.GetSection("webserver");
-			Bind(webserverSection, webserverConfig);
-
-			IConfigurationSection actionsSection = config.GetSection("actions");
-			Bind(actionsSection, actionsConfig);
+			BotConfig config = new BotConfig(configSource);
 
 			// Spawn systems
-			IChatClient chatClient = CreateChatClient(chatClientConfig, ciConfig);
-			IVersionControlSystem vcs = CreateVersionControlSystem(vcsConfig);
-			IContinuousIntegrationSystem cis = CreateContinuousIntegrationSystem(ciConfig);
+			IChatClient chatClient = CreateChatClient(config.chatClient, config.ci);
+			IVersionControlSystem vcs = CreateVersionControlSystem(config.vcs);
+			IContinuousIntegrationSystem cis = CreateContinuousIntegrationSystem(config.ci);
 
-			bot = new(vcs, cis, chatClient, webserverConfig, actionsConfig);
+			bot = new(vcs, cis, chatClient, config.webserver, config.actions);
 			bot.Run();
 
 			Console.WriteLine("\n" +
@@ -136,35 +93,6 @@ namespace GPGBot
 				"\n");
 
 			await bot.runComplete.Task;
-		}
-
-		private void Bind<T>(IConfigurationSection A, IConfigurationSection B, T destination)
-		{
-			if (A.Exists() && B.Exists())
-			{
-				throw new Exception("Found both " + A.Key.ToString() + " and " + B.Key.ToString() + " configs, there must only be one!");
-			}
-			else if (!A.Exists() && !B.Exists())
-			{
-				throw new Exception("Did not find either a " + A.Key.ToString() + " config or a " + B.Key.ToString() + " config!");
-			}
-			else
-			{
-				IConfigurationSection Section = (A.Exists()) ? A : B;
-				Section.Bind(destination);
-			}
-		}
-
-		private void Bind<T>(IConfigurationSection Section, T destination)
-		{
-			if (!Section.Exists())
-			{
-				throw new Exception("Did not find " + Section.Key.ToString() + " config!");
-			}
-			else
-			{
-				Section.Bind(destination);
-			}
 		}
 
 		// --------------------------------------
