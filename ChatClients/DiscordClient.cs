@@ -100,7 +100,7 @@ namespace GPGBot.ChatClients
 			if (channel is IMessageChannel messageChannel)
 			{
 				Embed e = embedBuilder.ConstructBuildStatusEmbed(embedData);
-				IUserMessage sentMessage = await messageChannel.SendMessageAsync("Test Text!", false, e);
+				IUserMessage sentMessage = await messageChannel.SendMessageAsync(null, false, e);
 				return sentMessage.Id;
 			}
 
@@ -133,7 +133,7 @@ namespace GPGBot.ChatClients
 			await Task.CompletedTask;
 		}
 
-		public async Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string? commitWebhook)
+		public async Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string? commitWebhook = null)
 		{
 			if (commitWebhook == null || commitWebhook == string.Empty)
 			{
@@ -148,7 +148,8 @@ namespace GPGBot.ChatClients
 
 			EmbedBuilder builder = new EmbedBuilder()
 				.WithAuthor(titleText, "https://i.imgur.com/TzA17kl.png")
-				.WithDescription(embedData.description);
+				.WithDescription(embedData.description)
+				.WithColor(1094111);
 
 			Embed e = builder.Build();
 

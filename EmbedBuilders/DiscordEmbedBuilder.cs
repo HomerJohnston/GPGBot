@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace GPGBot
 {
 	// --------------------------------------------------------------------------------------------
-	public struct EmbedStyle
+	public class EmbedStyle
 	{
 		public EmbedStyle() { }
 
@@ -68,10 +68,55 @@ namespace GPGBot
 				.Build();
 
 			config.GetSection("started").Bind(EmbedStyles[EBuildStatus.Started]);
-			config.GetSection("succeeded").Bind(EmbedStyles[EBuildStatus.Started]);
-			config.GetSection("failed").Bind(EmbedStyles[EBuildStatus.Started]);
-			config.GetSection("unstable").Bind(EmbedStyles[EBuildStatus.Started]);
-			config.GetSection("aborted").Bind(EmbedStyles[EBuildStatus.Started]);
+			config.GetSection("succeeded").Bind(EmbedStyles[EBuildStatus.Succeeded]);
+			config.GetSection("failed").Bind(EmbedStyles[EBuildStatus.Failed]);
+			config.GetSection("unstable").Bind(EmbedStyles[EBuildStatus.Unstable]);
+			config.GetSection("aborted").Bind(EmbedStyles[EBuildStatus.Aborted]);
+		}
+
+		public virtual string GetBuildURL(string buildConfigName)
+		{
+			return string.Empty;
+		}
+
+		public virtual string GetChangesURL(string buildConfigName, ulong buildID)
+		{
+			return string.Empty;
+		}
+
+		public virtual string GetConsoleURL(string buildConfigName, ulong buildID)
+		{
+			return string.Empty;
+		}
+
+		public Embed ConstructBuildStatusEmbed(BuildStatusEmbedData embedData)//int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName)
+		{
+			string buildWebURL = GetBuildURL(embedData.buildConfig);
+			string buildConsoleURL = GetConsoleURL(embedData.buildConfig, embedData.buildID);
+			string buildChangesURL = GetChangesURL(embedData.buildConfig, embedData.buildID);
+
+			string authorName = string.Format("{0} Build #{1}: {2}", embedData.buildConfig, embedData.buildID, embedData.buildStatus);
+
+			string description;
+
+			EmbedStyle style = EmbedStyles[embedData.buildStatus];
+			Color color = new(UInt32.Parse(style.Color));
+
+			if (embedData.buildStatus == EBuildStatus.Started)
+			{
+				description = string.Format($"Running... \u2022 [console]({buildConsoleURL})");
+			}
+			else
+			{
+				description = string.Format($"{embedData.text} change {embedData.changeID} \u2022 [changes]({buildChangesURL}) \u2022 [log]({buildConsoleURL})");
+			}
+
+			EmbedBuilder builder = new EmbedBuilder()
+				.WithAuthor(authorName, style.IconUrl, buildWebURL)
+				.WithDescription(description)
+				.WithColor(color);
+
+			return builder.Build();
 		}
 	}
 }

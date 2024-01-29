@@ -2,31 +2,31 @@
 <embeds>
 	<started>
 		<iconURL>https://i.imgur.com/oAeRyVK.png</iconURL>
-		<color>0,#'0x000000'</color>
+		<color>0</color><!--,#'0x000000'</color>-->
 		<title>Building...</title>
 		<description>Updating to</description>
 	</started>
 	<succeeded>
 		<iconURL>https://i.imgur.com/xc3kKpX.png</iconURL>
-		<color>51200,#'0x00c800'</color>
+		<color>51200</color><!--,#'0x00c800'</color>-->
 		<title>Succeeded</title>
 		<description>Updated to</description>
 	</succeeded>
 	<failed>
 		<iconURL>https://i.imgur.com/4vNtKWB.png</iconURL>
-		<color>13112340,#'0xc81414'</color>
+		<color>13112340</color><!--,#'0xc81414'</color>-->
 		<title>Failed</title>
 		<description>Failed updating to</description>
 	</failed>
 	<unstable>
 		<iconURL>https://i.imgur.com/QB4bBaR.png</iconURL>
-		<color>15635008,#'0xee9240'</color>
+		<color>15635008</color><!--,#'0xee9240'</color>-->
 		<title>Unstable</title>
 		<description>Build unstable for</description>
 	</unstable>
 	<aborted>
 		<iconURL>https://i.imgur.com/lp1mtvm.png</iconURL>
-		<color>15635008,#'0xee9240'</color>
+		<color>15635008</color><!--,#'0xee9240'</color>-->
 		<title>Aborted</title>
 		<description>Aborted updating to</description>
 	</aborted>

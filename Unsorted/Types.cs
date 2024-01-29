@@ -45,7 +45,6 @@ namespace GPGBot
 		public EBuildStatus buildStatus;
 		public string text;
 		public string changeID;
-		public string commitBy;
 	}
 
 	public struct CommitEmbedData
