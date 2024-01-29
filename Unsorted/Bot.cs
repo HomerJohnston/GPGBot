@@ -61,16 +61,16 @@ namespace GPGBot
 			}
 		}
 
-		public void Run()
+		public async Task Run()
 		{
-			chatClient?.Start();
-			webserver?.Start();
+			await chatClient.Start();
+			webserver.Start();
 		}
 
 		public void Stop()
 		{
-			chatClient?.Stop();
-			webserver?.Stop();
+			chatClient.Stop();
+			webserver.Stop();
 		}
 
 		Webserver BuildWebServer(Config.Webserver serverConfig)

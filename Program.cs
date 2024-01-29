@@ -86,7 +86,7 @@ namespace GPGBot
 			IContinuousIntegrationSystem cis = CreateContinuousIntegrationSystem(config.ci);
 
 			bot = new(vcs, cis, chatClient, config.webserver, config.actions);
-			bot.Run();
+			await bot.Run();
 
 			Console.WriteLine("\n" +
 				"Bot running! To shut down: curl -H \"key:<yourkey>\" http://<botaddress>/shutdown" +
