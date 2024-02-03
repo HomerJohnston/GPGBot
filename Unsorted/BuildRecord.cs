@@ -8,10 +8,27 @@ namespace GPGBot
 {
 	public struct BuildRecord
 	{
-		public BuildRecord() { }
+		public string jobName;
+		public ulong buildID;
+		public string changeID;
+		public string user;
 
-		public int ChangeID { get; set; } = -1;
-		public string UserName { get; set; } = String.Empty;
-		public string JobName { get; set; } = String.Empty;
+		public BuildRecord(string jobName, ulong buildID, string changeID, string user)
+		{
+			this.jobName = jobName;
+			this.buildID = buildID;
+			this.changeID = changeID;
+			this.user = user;
+		}
+		
+		public override int GetHashCode()
+		{
+			return HashCode.Combine(jobName, buildID);
+		}
+
+		public bool Equals(BuildRecord other)
+		{
+			return jobName == other.jobName && buildID == other.buildID;
+		}
 	}
 }

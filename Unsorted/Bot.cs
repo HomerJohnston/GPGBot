@@ -15,7 +15,7 @@ using WatsonWebserver.Extensions.HostBuilderExtension;
 
 namespace GPGBot
 {
-	internal class Bot
+	public class Bot
 	{
 		IVersionControlSystem versionControlSystem;
 		
@@ -30,7 +30,7 @@ namespace GPGBot
 
 		List<Config.ActionSpec> actionSpecs = new();
 
-		readonly Dictionary<int, BuildRecord> buildRecords = new();
+		readonly Dictionary<BuildRecord, EBuildStatus> buildRecords = new();
 
 		public bool bShutdownRequested = false;
 
@@ -61,7 +61,7 @@ namespace GPGBot
 			}
 		}
 
-		public async Task Run()
+		public async Task Start()
 		{
 			await chatClient.Start();
 			webserver.Start();
@@ -234,6 +234,10 @@ namespace GPGBot
 			await context.Response.Send(string.Format("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, stream {5}, type {6}", change, client, root, user, address, branch, type));
 		}
 
+		async Task HandleValidCommit(HttpContextBase context)
+		{
+		}
+
 		private string NoneOr(string s)
 		{
 			if (s == string.Empty) return "NONE";
@@ -261,28 +265,97 @@ namespace GPGBot
 				throw new Exception("Chat client was null!");
 			}
 
-			Console.WriteLine("OnBuildStatusUpdate(" + context.Request.Query.Querystring + ")");
-
 			var queryParams = GetQueryParams(context);
+
+			string jobName = queryParams["jobName"] ?? string.Empty;
+			string buildIDParam = queryParams["buildID"] ?? string.Empty;
+			string buildStatusParam = queryParams["buildStatus"] ?? string.Empty;
+			string changeID = queryParams["changeID"] ?? string.Empty;
+			string user = queryParams["user"] ?? string.Empty;
+
+			ulong buildID;
+			EBuildStatus buildStatus;
+
+			if (jobName == string.Empty || buildStatusParam == string.Empty)
+			{
+				Console.WriteLine("OnBuildStatusUpdate - no jobName parameter specified, ignoring!");
+				return;
+			}
+
+			if (buildIDParam == string.Empty)
+			{
+				Console.WriteLine("OnBuildStatusUpdate - no buildID parameter specified, ignoring!");
+				return;
+			}
+
+			if (buildStatusParam == string.Empty)
+			{
+				Console.WriteLine("OnBuildStatusUpdate - no buildStatus parameter specified, ignoring!");
+				return;
+			}
+
+			if (user == string.Empty)
+			{
+				Console.WriteLine("OnBuildStatusUpdate - no user parameter specified, ignoring!");
+				return;
+			}
+
+			if (!ulong.TryParse(buildIDParam, out buildID)) 
+			{
+				Console.WriteLine($"OnBuildStatusUpdate - failed to parse a build ID from {buildIDParam}, ignoring!");
+				return;
+			}
+
+			if (!Enum.TryParse<EBuildStatus>(buildStatusParam, true, out buildStatus))
+			{
+				Console.WriteLine($"OnBuildStatusUpdate - failed to parse a build status from {buildStatusParam}, ignoring!");
+				return;
+			}
+
+            if (changeID == string.Empty)
+            {
+				Console.WriteLine($"OnBuldStatusUpdate - no changeID parameter specified, ignoring!");
+				return;
+			}
+
+            await HandleValidBuildStatusUpdate(jobName, buildID, buildStatus, changeID, user);
+		}
+
+		private async Task HandleValidBuildStatusUpdate(string jobName, ulong buildID, EBuildStatus buildStatus, string changeID, string user)
+		{
+			BuildRecord record = new BuildRecord(jobName, buildID, changeID, user);
+
+			if (buildStatus == EBuildStatus.Started)
+			{
+				if (buildRecords.ContainsKey(record))
+				{
+					Console.WriteLine($"Received multiple start signals for {jobName} build {buildID}, ignoring!");
+					return;
+				}
+
+				buildRecords.Add(record, buildStatus);
+			}
+			else
+			{
+			}
 
 			BuildStatusEmbedData data = new BuildStatusEmbedData();
 
-			if (!Enum.TryParse<EBuildStatus>(queryParams["buildstat"], true, out data.buildStatus))
-			{
-				throw new Exception("Failed to parse a valid build status!");
-			}
 
 			data.text = "TestText";
 			data.buildConfig = "TestBuildConfig";
 
+			// Post new build status message
 			ulong? msgID = await chatClient.PostBuildStatusEmbed(data);
+
+			// If status was success, delete all other build status messages
 
 			if (msgID == null)
 			{
 				await context.Response.Send("Remote failed to run OnBuildStatusUpdate");
 			}
-            else
-            {
+			else
+			{
 				activeEmbeds.Add((ulong)msgID, null);
 				await context.Response.Send("Remote ran OnBuildStatusUpdate");
 			}
