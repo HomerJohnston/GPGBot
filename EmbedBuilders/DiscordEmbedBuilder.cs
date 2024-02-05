@@ -102,14 +102,7 @@ namespace GPGBot
 			EmbedStyle style = EmbedStyles[embedData.buildStatus];
 			Color color = new(UInt32.Parse(style.Color));
 
-			if (embedData.buildStatus == EBuildStatus.Started)
-			{
-				description = string.Format($"Running... \u2022 [console]({buildConsoleURL})");
-			}
-			else
-			{
-				description = string.Format($"{embedData.text} change {embedData.changeID} \u2022 [changes]({buildChangesURL}) \u2022 [log]({buildConsoleURL})");
-			}
+			description = string.Format($"{embedData.text} change {embedData.changeID} \u2022 [changes]({buildChangesURL}) \u2022 [log]({buildConsoleURL})");
 
 			EmbedBuilder builder = new EmbedBuilder()
 				.WithAuthor(authorName, style.IconUrl, buildWebURL)

@@ -18,9 +18,7 @@ namespace GPGBot.ChatClients
 
 		readonly IEmbedBuilder embedBuilder;
 
-		readonly ulong defaultChannelID;
-
-		readonly string defaultCommitWebhook;
+		readonly ulong guildID;
 
 		bool clientReady = false;
 
@@ -28,8 +26,11 @@ namespace GPGBot.ChatClients
 		{
 			config = inConfig;
 			embedBuilder = inEmbedBuilder;
-			defaultChannelID = inConfig.defaultBuildStatusChannel ?? 0;
-			defaultCommitWebhook = inConfig.defaultCommitWebhook ?? string.Empty;
+
+			if (!ulong.TryParse(inConfig.ServerID, out guildID))
+			{
+				guildID = 0;
+			}
 
 			DiscordSocketConfig clientConfig = new DiscordSocketConfig();
 			client = new DiscordSocketClient(clientConfig);
@@ -79,22 +80,17 @@ namespace GPGBot.ChatClients
 			await Task.CompletedTask;
 		}
 
-		public async Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong? channelID = null)
+		public async Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, string channelName)
 		{
-			if (channelID == null)
-			{
-				channelID = defaultChannelID;
-			}
-
-			IChannel channel = client.GetChannel((ulong)channelID);
+			IChannel? channel = FindChannel(channelName);
 
 			if (channel == null)
 			{
-				Console.WriteLine($"channel {channelID} not found!");
+				Console.WriteLine($"channel {channelName} not found!");
 			}
 			else
 			{
-				Console.WriteLine($"channel {channelID} found!");
+				Console.WriteLine($"channel {channelName} found!");
 			}
 
 			if (channel is IMessageChannel messageChannel)
@@ -107,39 +103,42 @@ namespace GPGBot.ChatClients
 			return null;
 		}
 
-		public async Task DeleteMessage(ulong messageID, ulong? channelID = null)
+		public async Task DeleteMessage(ulong messageID, string channelName)
 		{
-			if (channelID == null)
-			{
-				channelID = defaultChannelID;
-			}
+			IChannel? channel = FindChannel(channelName);
 
-			// TODO: these probably don't need to crash my program. Log errors instead.
-			if (channelID == 0)
-			{
-				throw new Exception("Invalid channel ID!");
-			}
-
-			if (client.GetChannel((ulong)channelID) is IMessageChannel messageChannel)
+			if (channel is IMessageChannel messageChannel)
 			{
 				RequestOptions options = new RequestOptions();
 				await messageChannel.DeleteMessageAsync(messageID);
 			}
 			else
 			{
-				throw new Exception($"Unable to delete message {messageID} from channel {channelID} (channel not found)");
+				throw new Exception($"Unable to delete message {messageID} from channel {channelName} (channel not found)");
 			}
 
 			await Task.CompletedTask;
 		}
 
-		public async Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string? commitWebhook = null)
+		public IChannel? FindChannel(string channelName)
 		{
-			if (commitWebhook == null || commitWebhook == string.Empty)
+			SocketGuild guild = client.GetGuild(guildID);
+
+			IChannel? channel = null;
+
+			foreach (SocketGuildChannel? channelCandidate in guild.Channels)
 			{
-				commitWebhook = defaultCommitWebhook;
+				if (channelCandidate.Name == channelName)
+				{
+					channel = channelCandidate;
+				}
 			}
 
+			return channel;
+		}
+
+		public async Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string commitWebhook)
+		{
 			DiscordWebhookClient webhookClient = new(commitWebhook);
 
 			webhookClient.Log += ConsoleLog;

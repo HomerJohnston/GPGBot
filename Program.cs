@@ -85,7 +85,7 @@ namespace GPGBot
 			IVersionControlSystem vcs = CreateVersionControlSystem(config.vcs);
 			IContinuousIntegrationSystem cis = CreateContinuousIntegrationSystem(config.ci);
 
-			bot = new(vcs, cis, chatClient, config.webserver, config.actions);
+			bot = new(vcs, cis, chatClient, config);
 			await bot.Start();
 
 			Console.WriteLine("\n" +

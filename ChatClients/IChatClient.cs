@@ -16,10 +16,10 @@ namespace GPGBot.ChatClients
 		Task Stop();
 
 		/** Post an embed, return a generic handle to the message */
-		Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong? channelID = null);// string buildConfig, ulong buildID, string status, string iconURL, Color color, string description, string changeID, string byUser);
+		Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, string channelName);// string buildConfig, ulong buildID, string status, string iconURL, Color color, string description, string changeID, string byUser);
 
-		Task DeleteMessage(ulong messageID, ulong? channelID = null);
+		Task DeleteMessage(ulong messageID, string channelName);
 
-		Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string? commitWebhook = null);
+		Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string commitWebhook);
 	}
 }

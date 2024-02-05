@@ -12,7 +12,7 @@ namespace GPGBot.ContinuousIntegration
 		{
 		}
 
-		public async Task<bool> StartBuild(string jobName)
+		public async Task<bool> StartJob(string jobName)
 		{
 			HttpClient client = new();
 

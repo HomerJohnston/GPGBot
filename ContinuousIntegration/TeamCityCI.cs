@@ -16,7 +16,7 @@ namespace GPGBot.ContinuousIntegration
 		{
 		}
 
-		public async Task<bool> StartBuild(string jobName)
+		public async Task<bool> StartJob(string jobName)
 		{
 			Uri uri = new Uri(new Uri(address), "app/rest/buildQueue");
 

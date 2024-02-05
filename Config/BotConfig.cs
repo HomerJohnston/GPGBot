@@ -9,7 +9,7 @@ namespace GPGBot.Config
 {
 	// ============================================================================================
 
-	public class Webserver
+	public class WebserverConfig
 	{
 		public string? Address { get; set; }
 		public int? Port { get; set; }
@@ -21,9 +21,8 @@ namespace GPGBot.Config
 	public class ChatClient
 	{
 		public EChatClient? System { get; set; }
+		public string? ServerID { get; set; }
 		public string? Token { get; set; }
-		public ulong? defaultBuildStatusChannel { get; set; }
-		public string? defaultCommitWebhook { get; set; }
 	}
 
 	// ============================================================================================
@@ -49,27 +48,82 @@ namespace GPGBot.Config
 
 	// ============================================================================================
 
-	public class ActionSpec
+	public class Webhook
 	{
-		public string? Branch { get; set; }
-		public string? Stream { get; set; }
-		public string? BuildConfigName { get; set; }
-		public string? BuildPostChannel { get; set; }
+		public string? Name { get; set; }
+		public string? ID { get; set; }
+	}
+
+	public class NamedWebhooks
+	{
+		public List<Webhook>? Webhook { get; set; }
+	}
+
+	// ============================================================================================
+
+	public class CommitResponse
+	{
+		public string? Name { get; set; }
+		public string? BuildJob { get; set; }
 		public string? CommitWebhook { get; set; }
 	}
 
-	public class Actions
+	public class CommitIgnorePhrase
 	{
-		public List<ActionSpec>? Spec { get; set; }
+		public string? Phrase { get; set; }
 	}
+
+	public class CommitResponses
+	{
+		public List<CommitResponse>? Stream { get; set; }
+		public List<CommitResponse>? Branch { get; set; }
+		
+		public List<CommitResponse> Responses
+		{
+			get
+			{
+				if (Stream == null && Branch == null)
+				{
+					throw new Exception("Error trying to get commit responses! Bad config?");
+				}
+
+				if (Stream != null && Branch != null)
+				{
+					throw new Exception("Error trying to get commit responses! Both Stream and Branch used at the same time? Bad config?");
+				}
+#pragma warning disable 8603
+				return Stream ?? Branch;
+#pragma warning restore 8603
+			}
+		}
+
+		public List<CommitIgnorePhrase>? Ignore { get; set; }
+	}
+
+	// ============================================================================================
+
+	public class BuildJob
+	{
+		public string? Name { get; set; }
+		public string? PostChannel { get; set; }
+	}
+
+	public class BuildJobs
+	{
+		public List<BuildJob>? Job { get; set; }
+	}
+	
+	// ============================================================================================
 
 	public class BotConfig
 	{
-		public Webserver webserver = new();
+		public WebserverConfig webserver = new();
 		public ChatClient chatClient = new();
 		public ContinuousIntegration ci = new();
 		public VersionControl vcs = new();
-		public Actions actions = new();
+		public CommitResponses commitResponses = new();
+		public NamedWebhooks namedWebhooks = new();
+		public BuildJobs buildJobs = new();
 
 		public BotConfig(string configSource = "config.xml")
 		{
@@ -93,11 +147,10 @@ namespace GPGBot.Config
 			Bind(perforceSection, gitSection, vcs);
 			vcs.System = (perforceSection.Exists() ? EVersionControlSystem.Perforce : EVersionControlSystem.Git);
 
-			IConfigurationSection webserverSection = config.GetSection("webserver");
-			Bind(webserverSection, webserver);
-
-			IConfigurationSection actionsSection = config.GetSection("actions");
-			Bind(actionsSection, actions);
+			Bind(config, "webserver", webserver);
+			Bind(config, "namedWebhooks", namedWebhooks);
+			Bind(config, "commitResponses", commitResponses);
+			Bind(config, "buildJobs", buildJobs);
 		}
 
 		private void Bind<T>(IConfigurationSection A, IConfigurationSection B, T destination)
@@ -117,15 +170,17 @@ namespace GPGBot.Config
 			}
 		}
 
-		private void Bind<T>(IConfigurationSection Section, T destination)
+		private void Bind<T>(IConfigurationRoot config, string sectionName, T destination)
 		{
-			if (!Section.Exists())
+			IConfigurationSection section = config.GetSection(sectionName);
+
+			if (!section.Exists())
 			{
-				throw new Exception("Did not find " + Section.Key.ToString() + " config!");
+				throw new Exception("Did not find " + section.Key.ToString() + " config!");
 			}
 			else
 			{
-				Section.Bind(destination);
+				section.Bind(destination);
 			}
 		}
 	}

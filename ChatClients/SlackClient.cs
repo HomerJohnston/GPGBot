@@ -8,17 +8,17 @@ namespace GPGBot.ChatClients
 {
 	public class SlackClient : IChatClient
 	{
-		public Task DeleteMessage(ulong messageID, ulong? channelID = null)
+		public Task DeleteMessage(ulong messageID, string channelName)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, ulong? channelID = null)
+		public Task<ulong?> PostBuildStatusEmbed(BuildStatusEmbedData embedData, string channelName)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string? commitWebhook = null)
+		public Task<ulong?> PostCommitMessage(CommitEmbedData embedData, string commitWebhook)
 		{
 			throw new NotImplementedException();
 		}
