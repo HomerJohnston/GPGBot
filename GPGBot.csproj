@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<Target Name="CustomPostPublish" AfterTargets="Publish">
-		<Exec Command="start X:\GPGBot\Deploy.bat" />
+		<!--<Exec Command="start X:\GPGBot\Deploy.bat" />-->
+		<Exec Command="powershell start-process -FilePath 'X:\GPGBot\Deploy.bat'" />
 	</Target>
 	
   <PropertyGroup>

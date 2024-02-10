@@ -10,15 +10,15 @@ namespace GPGBot
 	{
 		public string jobName;
 		public ulong buildID;
-		public string changeID;
-		public string user;
+		//public string changeID;
+		//public string user;
 
-		public BuildRecord(string jobName, ulong buildID, string changeID, string user)
+		public BuildRecord(string jobName, ulong buildID)//, string changeID, string user)
 		{
 			this.jobName = jobName;
 			this.buildID = buildID;
-			this.changeID = changeID;
-			this.user = user;
+			//this.changeID = changeID;
+			//this.user = user;
 		}
 		
 		public override int GetHashCode()

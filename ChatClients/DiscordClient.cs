@@ -86,11 +86,8 @@ namespace GPGBot.ChatClients
 
 			if (channel == null)
 			{
-				Console.WriteLine($"channel {channelName} not found!");
-			}
-			else
-			{
-				Console.WriteLine($"channel {channelName} found!");
+				Console.WriteLine($"Warning: channel <{channelName}> not found!");
+				return null;
 			}
 
 			if (channel is IMessageChannel messageChannel)
@@ -100,6 +97,7 @@ namespace GPGBot.ChatClients
 				return sentMessage.Id;
 			}
 
+			Console.WriteLine($"Channel <{channelName}> was found, but was not a message channel!");
 			return null;
 		}
 

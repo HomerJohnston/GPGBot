@@ -1,17 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Runtime.CompilerServices;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Web;
-using Discord;
 using GPGBot.ChatClients;
-using GPGBot.CommandHandlers.P4;
 using GPGBot.ContinuousIntegration;
 using GPGBot.VersionControlSystems;
 using GPGBot.Config;
-using Perforce.P4;
 using WatsonWebserver;
 using WatsonWebserver.Core;
 using WatsonWebserver.Extensions.HostBuilderExtension;
@@ -22,8 +17,6 @@ namespace GPGBot
 	public class Bot
 	{
 		// --------------------------------------
-		public bool bShutdownRequested = false;
-
 		public TaskCompletionSource<bool> runComplete = new();
 
 		IVersionControlSystem versionControlSystem;
@@ -36,12 +29,12 @@ namespace GPGBot
 		string? webserverKey;
 
 		// --------------------------------------
-		List<Config.BuildJob> buildJobs;
-		List<Config.CommitResponse> commitResponses;
-		List<string> commitIgnorePhrases = new();
-		List<Config.Webhook> webhooks;
+		readonly List<Config.BuildJob> buildJobs;
+		readonly List<Config.CommitResponse> commitResponses;
+		readonly List<string> commitIgnorePhrases = new();
+		readonly List<Config.Webhook> webhooks;
 
-		readonly Dictionary<BuildRecord, ulong> RunningBuildMessages = new();
+		Dictionary<BuildRecord, ulong> RunningBuildMessages = new();
 
 		// ---------------------------------------------------------------
 		public Bot(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, Config.BotConfig config)
@@ -123,7 +116,8 @@ namespace GPGBot
 
 			HostBuilder hostBuilder = new HostBuilder(address, port, false, DefaultRoute)
 				.MapAuthenticationRoute(AuthenticateRequest)
-				.MapParameteRoute(HttpMethod.POST, "/on-commit", OnCommit, true) // Handles triggers from source control system
+				.MapParameteRoute(HttpMethod.POST, "/on-commit", OnCommitContent, true) // Handles triggers from source control system
+				.MapParameteRoute(HttpMethod.POST, "/on-commit-code", OnCommitCode, true) // Handles triggers from source control system
 				.MapParameteRoute(HttpMethod.POST, "/build-status-update", OnBuildStatusUpdate, true) // Handles status updates from continuous integration
 				.MapStaticRoute(HttpMethod.GET, "/shutdown", Shutdown, true);
 
@@ -160,52 +154,55 @@ namespace GPGBot
 			string? incomingKey = context.Request.Headers["key"];
 
 			Console.WriteLine("Rejected incoming request" + ((incomingKey != null) ? (", invalid key: " + (incomingKey)) : ", no key"));
-			
-			context.Response.StatusCode = 401;
-			await context.Response.Send("Request denied.");
+
+			context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+			await context.Response.Send("Request denied. Required format: curl http://botaddress -H \"key:passphrase\"");
 		}
 		#endregion
 
 		// --------------------------------------
-		async Task OnCommit(HttpContextBase context)
+		async Task OnCommitContent(HttpContextBase context)
 		{
-			if (versionControlSystem == null)
-			{
-				context.Response.StatusCode = 500;
-				await context.Response.Send(string.Format("OnCommit failed, no version control system configured!"));
-				throw new Exception("No version control system, cannot proceed!");
-			}
+			await Log("OnCommitContent");
+			await OnCommit(context, false);
+		}
 
+		// --------------------------------------
+		async Task OnCommitCode(HttpContextBase context)
+		{
+			await Log("OnCommitCode");
+			await OnCommit(context, true);
+		}
+
+		async Task OnCommit(HttpContextBase context, bool doBuild)
+		{
 			var queryParams = GetQueryParams(context);
 
 			string change = queryParams["change"] ?? string.Empty;
 			string client = queryParams["client"] ?? string.Empty;
-			string root = queryParams["root"] ?? string.Empty;
 			string user = queryParams["user"] ?? string.Empty;
-			string address = queryParams["address"] ?? string.Empty;
 			string branch = queryParams["branch"] ?? string.Empty; // branch is used for potential git compatibility only; p4 triggers %stream% is bugged and cannot send stream name
-			string buildParam = queryParams["build"] ?? string.Empty;
-			
+
 			// workaround for p4 trigger bug - no sending of stream name capability. query for it instead.
 			if (branch == string.Empty)
 			{
 				branch = versionControlSystem.GetStream(change, client) ?? string.Empty;
 			}
 
-			if (change == string.Empty || client == string.Empty || root == string.Empty || user == string.Empty || address == string.Empty || branch == string.Empty)
+			if (change == string.Empty || client == string.Empty || user == string.Empty || branch == string.Empty)
 			{
-				Console.WriteLine($"OnCommit INVALID - something wasn't set: change {NoneOr(change)}, client {NoneOr(client)}, root {NoneOr(root)}, user {NoneOr(user)}, address {NoneOr(address)}, branch {NoneOr(branch)}, build {NoneOr(buildParam)}");
+				Console.WriteLine($"OnCommit INVALID - something wasn't set: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}, build {doBuild}");
 				return;
 			}
 
-			await HandleValidCommit(context, change, client, root, user, address, branch, buildParam);
+			await HandleValidCommit(context, change, client, user, branch, doBuild);
 		}
 
-		async Task HandleValidCommit(HttpContextBase context, string change, string client, string root, string user, string address, string branch, string buildParam)
+		async Task HandleValidCommit(HttpContextBase context, string change, string client, string user, string branch, bool doBuild)
 		{
 			List<Config.CommitResponse> matchedCommits = commitResponses.FindAll(spec => spec.Name == branch);
 
-			Console.WriteLine($"OnCommit: change {NoneOr(change)}, client {NoneOr(client)}, root {NoneOr(root)}, user {NoneOr(user)}, address {NoneOr(address)}, branch {NoneOr(branch)}, build {NoneOr(buildParam)}");
+			Console.WriteLine($"OnCommit: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}, build {doBuild}");
 
 			if (matchedCommits.Count == 0)
 			{
@@ -214,9 +211,6 @@ namespace GPGBot
 				Console.WriteLine("No matching action specs found! Ignoring this commit.");
 				return;
 			}
-
-			bool build;
-			bool.TryParse(buildParam, out build);
 
 			// Simple work to avoid posting the same commit twice
 			HashSet<string> commitPostedTo = new();
@@ -235,7 +229,7 @@ namespace GPGBot
 					}
 				}
 
-				if (build)
+				if (doBuild)
 				{
 					string? jobName = spec.BuildJob;
 
@@ -252,7 +246,7 @@ namespace GPGBot
 			}
 
 			context.Response.StatusCode = 200;
-			await context.Response.Send(string.Format("OnCommit: change {0}, client {1}, root {2}, user {3}, address {4}, stream {5}, build {6}", change, client, root, user, address, branch, buildParam));
+			await context.Response.Send($"OnCommit: change {change}, client {client}, user {user}, stream/branch {branch}, build {doBuild}");
 		}
 
 		private string NoneOr(string s)
@@ -300,18 +294,11 @@ namespace GPGBot
 
 		async Task OnBuildStatusUpdate(HttpContextBase context)
 		{
-			if (chatClient == null)
-			{
-				throw new Exception("Chat client was null!");
-			}
-
 			var queryParams = GetQueryParams(context);
 
 			string jobName = queryParams["jobName"] ?? string.Empty;
 			string buildIDParam = queryParams["buildID"] ?? string.Empty;
 			string buildStatusParam = queryParams["buildStatus"] ?? string.Empty;
-			string changeID = queryParams["changeID"] ?? string.Empty;
-			string user = queryParams["user"] ?? string.Empty;
 
 			ulong buildID;
 			EBuildStatus buildStatus;
@@ -334,79 +321,66 @@ namespace GPGBot
 				return;
 			}
 
-			if (user == string.Empty)
-			{
-				Console.WriteLine("OnBuildStatusUpdate - no user parameter specified, ignoring!");
-				return;
-			}
-
 			if (!ulong.TryParse(buildIDParam, out buildID)) 
 			{
 				Console.WriteLine($"OnBuildStatusUpdate - failed to parse a build ID from {buildIDParam}, ignoring!");
 				return;
 			}
 
-			if (!Enum.TryParse<EBuildStatus>(buildStatusParam, true, out buildStatus))
+			if (!EBuildStatus.TryParse(buildStatusParam, true, out buildStatus))
 			{
 				Console.WriteLine($"OnBuildStatusUpdate - failed to parse a build status from {buildStatusParam}, ignoring!");
 				return;
 			}
 
-			if (changeID == string.Empty)
-			{
-				Console.WriteLine($"OnBuldStatusUpdate - no changeID parameter specified, ignoring!");
-				return;
-			}
+			string result =	await HandleValidBuildStatusUpdate(jobName, buildID, buildStatus);
 
-			await HandleValidBuildStatusUpdate(jobName, buildID, buildStatus, changeID, user);
+			await context.Response.Send(result);
 		}
 
 		// --------------------------------------
 
-		private async Task HandleValidBuildStatusUpdate(string jobName, ulong buildID, EBuildStatus buildStatus, string changeID, string user)
+		private async Task<string> HandleValidBuildStatusUpdate(string jobName, ulong buildID, EBuildStatus buildStatus)
 		{
-			BuildRecord record = new BuildRecord(jobName, buildID, changeID, user);
+			BuildRecord record = new BuildRecord(jobName, buildID);
 
 			List<BuildJob> matchedJobs = buildJobs.FindAll(spec => spec.Name == jobName);
 
+			string result = string.Empty;
+
 			if (matchedJobs.Count == 0) 
 			{
-				await Log("Warning: found no build job config entries to post status for!");
-				return;
+				result += $"Config warning: found no build jobs named {jobName} in config entries to post status for!";
+				return result;
 			}
 
 			if (matchedJobs.Count > 1) 
 			{
-				await Log("Warning: found multiple build job config entries with the same build job name, only using the first one!");
+				result += $"Config warning: found multiple build jobs named {jobName}, only using the first one!";
 			}
 
 			BuildJob buildJob = matchedJobs.First();
 
 			if (buildJob.PostChannel == null) 
 			{
-				return;
+				result += $"Config warning: {jobName} has no post channel set!";
+				return result;
 			}
 
 			if (buildStatus == EBuildStatus.Started)
 			{
 				if (RunningBuildMessages.ContainsKey(record))
 				{
-					await Log($"Received multiple start signals for {jobName} build {buildID}, ignoring!");
-					return;
+					result += $"Received multiple start signals for {jobName}, build {buildID}, ignoring!";
+					return result;
 				}
 
-				BuildStatusEmbedData embedData = new BuildStatusEmbedData();
-				embedData.buildConfig = jobName;
-				embedData.buildStatus = buildStatus;
-				embedData.buildID = buildID;
-
-				// TODO channel!
-				ulong? message = await chatClient.PostBuildStatusEmbed(embedData, buildJob.PostChannel);
+				ulong? message = await PostBuildStatus(jobName, buildID, buildStatus, buildJob.PostChannel);
 
 				if (message == null)
 				{
-					await Log("Failed to post message!");
-					return;
+					result += "Failed to post message!";
+					return result;
 				}
 				
 				RunningBuildMessages.Add(record, (ulong)message);
@@ -417,39 +391,60 @@ namespace GPGBot
 
 				if (!RunningBuildMessages.TryGetValue(record, out runningMessage))
 				{
-					await Log($"Received a build status update for {jobName} build {buildID} but there was no build in progress for this, ignoring!");
-					return;
+					result += $"Received a build status update for {jobName} build {buildID} but there was no build in progress for this, ignoring!";
+					return result;
 				}
 
-				// TODO channel!
 				await chatClient.DeleteMessage(runningMessage, buildJob.PostChannel);
+
+				RunningBuildMessages.Remove(record);
+
+				await PostBuildStatus(jobName, buildID, buildStatus, buildJob.PostChannel);
 			}
 
-			/*
-			if (msgID == null)
-			{
-				await context.Response.Send("Remote failed to run OnBuildStatusUpdate");
-			}
-			else
-			{
-				activeEmbeds.Add((ulong)msgID, null);
-				await context.Response.Send("Remote ran OnBuildStatusUpdate");
-			}
-			*/
+			result += result.Length == 0 ? "Success" : "\nSuccess";
+			return result;
+		}
+
+		public async Task<ulong?> PostBuildStatus(string jobName, ulong buildID, EBuildStatus buildStatus, string channelName)
+		{
+			BuildStatusEmbedData embedData = new BuildStatusEmbedData();
+			embedData.buildConfig = jobName;
+			embedData.buildStatus = buildStatus;
+			embedData.buildID = buildID;
+
+			// TODO channel!
+			ulong? message = await chatClient.PostBuildStatusEmbed(embedData, channelName);
+
+			return message;
 		}
 
 		// --------------------------------------
 		public async Task Shutdown(HttpContextBase context)
 		{
+			await Log("Shutting down!");
+
 			await context.Response.Send("Bot: shutting down!");
 
 			runComplete.SetResult(true);
 		}
 
 		// --------------------------------------
-		async Task DefaultRoute(HttpContextBase context) =>
-		  await context.Response.Send("Pong");
+		async Task DefaultRoute(HttpContextBase context)
+		{
+			context.Response.StatusCode = (int)HttpStatusCode.OK;
+			await context.Response.Send(
+				"Usage:\n" +
+				"curl http://botaddress -H \"key:passphrase\" -d \"param=value&param=value\"\n" +
+				"\n" +
+				"Valid commands:\n" +
+				"    /on-commit            params: change=id, client=name, user=name, branch=name, build=trueOrFalse\n" +
+				"    /build-status-update  params: jobName=...&buildID=...&buildStatus=started|succeeded|failed|unstable|aborted\n" +
+				"    /shutdown\n\n" +
 
+				"Example:\n" +
+				"curl -H \"key:passphrase\" -d ");
+		}
 		// --------------------------------------
 		static System.Collections.Specialized.NameValueCollection GetQueryParams(HttpContextBase context)
 		{
