@@ -68,11 +68,6 @@ namespace GPGBot.Config
 		public string? CommitWebhook { get; set; }
 	}
 
-	public class CommitIgnorePhrase
-	{
-		public string? Phrase { get; set; }
-	}
-
 	public class CommitResponses
 	{
 		public List<CommitResponse>? Stream { get; set; }
@@ -97,7 +92,7 @@ namespace GPGBot.Config
 			}
 		}
 
-		public List<CommitIgnorePhrase>? Ignore { get; set; }
+		public List<string>? Ignore { get; set; }
 	}
 
 	// ============================================================================================

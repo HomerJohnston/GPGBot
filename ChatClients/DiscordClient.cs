@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Net.WebRequestMethods;
 
 namespace GPGBot.ChatClients
 {
@@ -141,10 +142,13 @@ namespace GPGBot.ChatClients
 
 			webhookClient.Log += ConsoleLog;
 
-			string titleText = string.Format("Change {0}  \u2022  {1}", embedData.change, embedData.client);
+			string titleText = string.Format("Change {0} \u2022 {1}", embedData.change, embedData.client);
+
+			// TODO remove hardcoding
+			string changeIcon = embedData.containsCode ? "https://imgur.com/jL4lPLP.png" : "https://i.imgur.com/TzA17kl.png";
 
 			EmbedBuilder builder = new EmbedBuilder()
-				.WithAuthor(titleText, "https://i.imgur.com/TzA17kl.png")
+				.WithAuthor(titleText, changeIcon)
 				.WithDescription(embedData.description)
 				.WithColor(1094111);
 
