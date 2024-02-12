@@ -9,7 +9,7 @@ namespace GPGBot
 	public enum BuildStates
     {
         NULL,
-        Started,
+        Running,
 		Succeeded,
 		Failed,
 		Unstable,

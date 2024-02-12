@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <embeds>
-	<started>
+	<running>
 		<iconURL>https://i.imgur.com/oAeRyVK.png</iconURL>
 		<color>0</color><!--,#'0x000000'</color>-->
 		<title>Building...</title>
 		<description>Updating to</description>
-	</started>
+	</running>
 	<succeeded>
 		<iconURL>https://i.imgur.com/xc3kKpX.png</iconURL>
 		<color>51200</color><!--,#'0x00c800'</color>-->

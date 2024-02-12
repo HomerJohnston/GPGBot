@@ -254,7 +254,7 @@ namespace GPGBot
 
 					if (jobName != null)
 					{
-						bool result = await continuousIntegrationSystem.StartJob(jobName);
+						bool result = await continuousIntegrationSystem.StartJob(jobName, change);
 						Console.WriteLine($"Build {jobName} start result: {result}");
 					}
 					else
@@ -303,6 +303,8 @@ namespace GPGBot
 			string buildIDParam = queryParams["buildID"] ?? string.Empty;
 			string buildStatusParam = queryParams["buildStatus"] ?? string.Empty;
 
+			await Log($"OnBuildStatusUpdate {jobName} {buildIDParam} {buildStatusParam}");
+
 			ulong buildID;
 			EBuildStatus buildStatus;
 
@@ -338,6 +340,8 @@ namespace GPGBot
 				return;
 			}
 
+			await Log($"OnBuildStatusUpdate - Valid {jobName} {buildID} {buildStatus}");
+
 			await HandleValidBuildStatusUpdate(context, jobName, buildID, buildStatus);
 		}
 
@@ -350,12 +354,15 @@ namespace GPGBot
 			List<BuildJob> matchedJobs = buildJobs.FindAll(spec => spec.Name == jobName);
 
 			string result = string.Empty;
-
+			
 			if (matchedJobs.Count == 0) 
 			{
 				result += $"Config warning: found no build jobs named {jobName} in config entries to post status for!";
 				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
 				await context.Response.Send(result);
+
+				await Log($"Config warning: found no build jobs named {jobName} in config entries to post status for!");
+
 				return;
 			}
 
@@ -374,7 +381,7 @@ namespace GPGBot
 				return;
 			}
 
-			if (buildStatus == EBuildStatus.Started)
+			if (buildStatus == EBuildStatus.Running)
 			{
 				if (RunningBuildMessages.ContainsKey(record))
 				{
@@ -395,6 +402,7 @@ namespace GPGBot
 				}
 
 				RunningBuildMessages.Add(record, (ulong)message);
+
 			}
 			else
 			{
@@ -474,17 +482,20 @@ namespace GPGBot
 		{
 			context.Response.StatusCode = (int)HttpStatusCode.OK;
 			await context.Response.Send(
-				"Usage:\n" +
-				"curl http://botaddress -H \"key:passphrase\" -d \"param=value&param=value\"\n" +
+				"\n" +
+				"Ping? Pong! This is a default response. Usage:\n" +
+				"\n" +
+				"curl http://botaddress:port/command -H \"key:passphrase\" -d \"param=value&param=value\"\n" +
+				"-----OR-----\n"+
+				"Invoke-RestMethod -Method 'POST' -Uri http://botaddress:port/command -Headers @{'key'='passphrase'} -Body @{'param'='value';'param'='value'}\n" +
 				"\n" +
 				"Valid commands:\n" +
 				"    /on-commit            params: change=id, client=name, user=name, branch=name, build=trueOrFalse\n" +
-				"    /build-status-update  params: jobName=...&buildID=...&buildStatus=started|succeeded|failed|unstable|aborted\n" +
-				"    /shutdown\n\n" +
-
-				"Example:\n" +
-				"curl -H \"key:passphrase\" -d ");
+				"    /build-status-update  params: jobName=...&buildID=...&buildStatus=running|succeeded|failed|unstable|aborted\n" +
+				"    /shutdown             params: (none required)"
+			);
 		}
+
 		// --------------------------------------
 		static System.Collections.Specialized.NameValueCollection GetQueryParams(HttpContextBase context)
 		{

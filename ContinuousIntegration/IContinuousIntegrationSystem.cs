@@ -10,5 +10,6 @@ namespace GPGBot.ContinuousIntegration
     public interface IContinuousIntegrationSystem
     {
         Task<bool> StartJob(string jobName);
+        Task<bool> StartJob(string jobName, string changeID);
     }
 }

@@ -29,5 +29,10 @@ namespace GPGBot.ContinuousIntegration
 
 			return false;
 		}
+
+		public Task<bool> StartJob(string jobName, string changeID)
+		{
+			throw new NotImplementedException();
+		}
 	}
 }

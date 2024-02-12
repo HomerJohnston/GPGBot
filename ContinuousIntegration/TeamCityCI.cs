@@ -18,13 +18,20 @@ namespace GPGBot.ContinuousIntegration
 
 		public async Task<bool> StartJob(string jobName)
 		{
+			string changeID = "";
+
+			return await StartJob(jobName, changeID);
+		}
+
+		public async Task<bool> StartJob(string jobName, string changeID)
+		{
 			Uri uri = new Uri(new Uri(address), "app/rest/buildQueue");
 
 			HttpClient client = new();
 			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 			client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
 			
-			string xmlContent = "<build><buildType id='" + jobName + "'/></build>";
+			string xmlContent = $"<build><buildType id=\"{jobName}\"/><properties><property name=\"changeID\" value=\"{changeID}\"/></properties></build>";
 			StringContent requestContent = new(xmlContent, System.Text.Encoding.UTF8, "application/xml");
 
 			HttpResponseMessage response = await client.PostAsync(uri, requestContent);

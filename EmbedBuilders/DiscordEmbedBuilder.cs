@@ -52,7 +52,7 @@ namespace GPGBot
 
 		protected Dictionary<EBuildStatus, EmbedStyle> EmbedStyles = new Dictionary<EBuildStatus, EmbedStyle>()
 		{
-			{ EBuildStatus.Started, new() },
+			{ EBuildStatus.Running, new() },
 			{ EBuildStatus.Succeeded, new() },
 			{ EBuildStatus.Failed, new() },
 			{ EBuildStatus.Unstable, new() },
@@ -67,7 +67,7 @@ namespace GPGBot
 				.AddXmlFile(styleSource, false, false)
 				.Build();
 
-			config.GetSection("started").Bind(EmbedStyles[EBuildStatus.Started]);
+			config.GetSection("running").Bind(EmbedStyles[EBuildStatus.Running]);
 			config.GetSection("succeeded").Bind(EmbedStyles[EBuildStatus.Succeeded]);
 			config.GetSection("failed").Bind(EmbedStyles[EBuildStatus.Failed]);
 			config.GetSection("unstable").Bind(EmbedStyles[EBuildStatus.Unstable]);
@@ -95,6 +95,18 @@ namespace GPGBot
 			string buildConsoleURL = GetConsoleURL(embedData.buildConfig, embedData.buildID);
 			string buildChangesURL = GetChangesURL(embedData.buildConfig, embedData.buildID);
 
+			string? buildWebURLFixed = buildWebURL.Replace(" ", "%20");// System.Web.HttpUtility.UrlEncode(buildWebURL);
+
+			if (buildWebURLFixed == null)
+			{
+				throw new Exception("Invalid URL!");
+			}
+			else
+			{
+				Console.WriteLine(buildWebURLFixed);
+			}
+
+
 			string authorName = string.Format("{0} Build #{1}: {2}", embedData.buildConfig, embedData.buildID, embedData.buildStatus);
 
 			string description;
@@ -105,7 +117,7 @@ namespace GPGBot
 			description = string.Format($"{embedData.text} change {embedData.changeID} \u2022 [changes]({buildChangesURL}) \u2022 [log]({buildConsoleURL})");
 
 			EmbedBuilder builder = new EmbedBuilder()
-				.WithAuthor(authorName, style.IconUrl, buildWebURL)
+				.WithAuthor(authorName, style.IconUrl, buildWebURLFixed)
 				.WithDescription(description)
 				.WithColor(color);
 

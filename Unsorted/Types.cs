@@ -31,7 +31,7 @@ namespace GPGBot
 	public enum EBuildStatus
 	{
 		NULL,
-		Started,
+		Running,
 		Succeeded,
 		Failed,
 		Unstable,
