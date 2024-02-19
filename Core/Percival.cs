@@ -203,33 +203,34 @@ namespace PercivalBot.Core
             string user = queryParams["user"] ?? string.Empty;
             string branch = queryParams["branch"] ?? string.Empty; // branch is used for potential git compatibility only; p4 triggers %stream% is bugged and cannot send stream name
 
-            await Log($"OnCommit: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}");
-
-            // workaround for p4 trigger bug - no sending of stream name capability. query for it instead.
-            if (branch == string.Empty)
+			Commit commit = new Commit(change, client, user, branch);
+			
+			// workaround for p4 trigger bug - no sending of stream name capability. query for it instead.
+			if (!commit.HasBranch())
             {
                 await Log("No branch supplied, trying to grab stream using VCS method.");
-                branch = versionControlSystem.GetStream(change, client) ?? string.Empty;
+                commit.Branch = versionControlSystem.GetStream(change, client) ?? string.Empty;
             }
 
-            if (change == string.Empty || client == string.Empty || user == string.Empty || branch == string.Empty)
+            if (!commit.IsValid(out string error))
             {
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await Log($"Commit POST was INVALID - something wasn't set: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}");
-                await context.Response.Send($"Commit POST was INVALID - something wasn't set: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}");
+                await Log($"Commit POST was INVALID - {error}");
+                await context.Response.Send($"Commit POST was INVALID - {error}");
                 return;
             }
 
-            await HandleValidCommit(context, change, client, user, branch);
+            await HandleValidCommit(context, commit);
         }
 
         // --------------------------------------
-        async Task HandleValidCommit(HttpContextBase context, string changeID, string client, string user, string branch)
-        {
-            List<CommitResponse> matchedCommits = commitResponses.FindAll(spec => spec.Name == branch);
+        async Task HandleValidCommit(HttpContextBase context, Commit commit)
+		{
+			await Log($"OnCommit: {commit}");
 
+			List<CommitResponse> matchedCommits = commitResponses.FindAll(spec => spec.Name == commit.Branch);
 
-            string commitDescription = versionControlSystem.GetCommitDescription(changeID) ?? "<No description>";
+            string commitDescription = versionControlSystem.GetCommitDescription(commit.Change) ?? "<No description>";
 
             foreach (string ignorePhrase in commitIgnorePhrases)
             {
@@ -237,8 +238,8 @@ namespace PercivalBot.Core
                 if (commitDescription.StartsWith(ignorePhrase, StringComparison.OrdinalIgnoreCase))
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.OK;
-                    await Log($"Ignored commit trigger for change {changeID}; found matching commit ignore");
-                    await context.Response.Send($"Ignored commit trigger for change {changeID}; found matching commit ignore");
+                    await Log($"Ignored commit trigger for change {commit.Change}; found matching commit ignore");
+                    await context.Response.Send($"Ignored commit trigger for change {commit.Change}; found matching commit ignore");
 
                     return;
                 }
@@ -253,7 +254,7 @@ namespace PercivalBot.Core
 
             bool containedCode;
             bool containedWwise;
-            versionControlSystem.GetRequiredActionsBasedOnChanges(changeID, out containedCode, out containedWwise);
+            versionControlSystem.GetRequiredActionsBasedOnChanges(commit.Change, out containedCode, out containedWwise);
 
             await Log($"Change contained code: {containedCode}; Change contained wwise: {containedWwise}");
 
@@ -268,7 +269,7 @@ namespace PercivalBot.Core
 
                     if (commitWebhook != null)
                     {
-                        await PostCommitMessage(changeID, user, branch, client, commitWebhook, commitDescription, containedCode || containedWwise);
+                        await PostCommitMessage(commit.Change, commit.User, commit.Branch, commit.Client, commitWebhook, commitDescription, containedCode || containedWwise);
                         commitPostedTo.Add(spec.PostWebhook);
                     }
                 }
@@ -279,21 +280,15 @@ namespace PercivalBot.Core
 
                     if (jobName != null)
                     {
-                        await Log($"Attempting to start build: {jobName} at change: {changeID}");
-                        bool result = await continuousIntegrationSystem.StartJob(jobName, changeID, containedCode, containedWwise);
+                        await Log($"Attempting to start build: {jobName} at change: {commit.Change}");
+                        bool result = await continuousIntegrationSystem.StartJob(jobName, commit.Change, containedCode, containedWwise);
                         await Log($"Build {jobName} start result: {result}");
                     }
                 }
             }
 
             context.Response.StatusCode = (int)HttpStatusCode.OK;
-            await context.Response.Send($"OnCommit: change {changeID}, client {client}, user {user}, stream/branch {branch}, buildCode {containedCode}, buildWwise {containedWwise}");
-        }
-
-        // --------------------------------------
-        private string NoneOr(string s)
-        {
-            return s == string.Empty ? "NONE" : s;
+            await context.Response.Send($"OnCommit: change {commit.Change}, client {commit.Client}, user {commit.User}, stream/branch {commit.Branch}, buildCode {containedCode}, buildWwise {containedWwise}");
         }
 
         // --------------------------------------
