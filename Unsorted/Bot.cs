@@ -228,23 +228,17 @@ namespace GPGBot
 
 			string commitDescription = versionControlSystem.GetCommitDescription(changeID) ?? "<No description>";
 
-			bool bIgnore = false;
-
 			foreach (string ignorePhrase in commitIgnorePhrases)
 			{
 				// TODO populate the ignores!
-				if (commitDescription.StartsWith(ignorePhrase, StringComparison.InvariantCultureIgnoreCase))
+				if (commitDescription.StartsWith(ignorePhrase, StringComparison.OrdinalIgnoreCase))
 				{
-					bIgnore = true;
-					break;
-				}
-			}
+					context.Response.StatusCode = (int)HttpStatusCode.OK;
+					await Log($"Ignored commit trigger for change {changeID}; found matching commit ignore");
+					await context.Response.Send($"Ignored commit trigger for change {changeID}; found matching commit ignore");
 
-			if (bIgnore)
-			{
-				context.Response.StatusCode = (int)HttpStatusCode.OK;
-				await Log($"Ignored commit trigger for change {changeID}; found matching commit ignore");
-				await context.Response.Send($"Ignored commit trigger for change {changeID}; found matching commit ignore");
+					return;
+				}
 			}
 
 			if (matchedCommits.Count == 0)

@@ -157,16 +157,12 @@ namespace GPGBot.VersionControlSystems
 
 			foreach (string fileSpec in new LineReader(() => new StringReader(output)))
 			{
-				Console.WriteLine($"Examining... {fileSpec}");
-
 				int separator = fileSpec.LastIndexOf('|');
 				
 				string fileName = fileSpec.Substring(0, separator);
 				string action = fileSpec.Substring(separator + 1);
 
 				string ext = Path.GetExtension(fileName);
-
-				Console.WriteLine($"    Parsed extension: {ext}");
 
 				if (!buildCode && codeExtensions.Contains(ext))
 				{
