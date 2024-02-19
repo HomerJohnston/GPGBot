@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
+using PercivalBot.ContinuousIntegration.Interface;
 
-namespace GPGBot.ContinuousIntegration
+namespace PercivalBot.ContinuousIntegration
 {
-	public class JenkinsCI : CIBase, IContinuousIntegrationSystem
+    public class JenkinsCI : BaseCI, IContinuousIntegrationSystem
 	{
 		public JenkinsCI(Config.ContinuousIntegration config) : base(config)
 		{
@@ -14,8 +15,10 @@ namespace GPGBot.ContinuousIntegration
 
 		public async Task<bool> StartJob(string jobName, bool buildCode, bool buildWwise)
 		{
+			await Task.Delay(1); // shut up warnings
 			throw new NotImplementedException();
 
+			/*
 			HttpClient client = new();
 
 			FormUrlEncodedContent requestContent = new(new[] { new KeyValuePair<string, string>("text", "text"), });
@@ -30,6 +33,7 @@ namespace GPGBot.ContinuousIntegration
 			}
 
 			return false;
+			*/
 		}
 
 		public Task<bool> StartJob(string jobName, string changeID, bool buildCode, bool buildWwise)

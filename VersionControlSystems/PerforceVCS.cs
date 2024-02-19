@@ -9,10 +9,12 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Perforce;
 using Perforce.P4;
+using PercivalBot.Utility;
+using PercivalBot.VersionControlSystems.Interface;
 
-namespace GPGBot.VersionControlSystems
+namespace PercivalBot.VersionControlSystems
 {
-	public class PerforceVCS : IVersionControlSystem
+    public class PerforceVCS : IVersionControlSystem
 	{
 		Server server = null!;
 		Repository repo = null!;

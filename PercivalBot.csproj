@@ -1,0 +1,66 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<Target Name="CustomPostPublish" AfterTargets="Publish">
+		<!--<Exec Command="start X:\GPGBot\Deploy.bat" />-->
+		<Exec Command="powershell start-process -FilePath '_Scripts/Deploy.bat'" />
+	</Target>
+	
+  <PropertyGroup>
+	<OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows>
+	<IsLinux Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">true</IsLinux>
+  </PropertyGroup>
+
+    <PropertyGroup Condition="'$(IsWindows)'=='true'">
+	    <DefineConstants>Windows</DefineConstants>
+    </PropertyGroup>
+  
+    <PropertyGroup Condition="'$(IsLinux)'=='true'">
+	    <DefineConstants>Linux</DefineConstants>
+    </PropertyGroup>
+  
+    <ItemGroup>
+      <None Remove="Config.xml" />
+      <None Remove="EmbedStyles.xml" />
+    </ItemGroup>
+
+	<ItemGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <Content Include="_Config\config.xml">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+	
+    <ItemGroup>
+      <Content Include="_Config\embedstyles.xml">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Discord.Net" Version="3.13.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="p4api.net" Version="2023.1.248.4623" />
+    <PackageReference Include="Watson" Version="6.1.5" />
+    <PackageReference Include="Watson.Lite" Version="6.1.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="EmbedBuilders\" />
+    <Folder Include="_ThirdParty\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="C:\Users\KWilcox\.nuget\packages\p4api.net\2023.1.248.4623\build\..\runtimes\win-x86\native\p4bridge.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="C:\Users\KWilcox\.nuget\packages\p4api.net\2023.1.248.4623\build\..\runtimes\win-x64\native\p4bridge.dll" />
+  </ItemGroup>
+
+</Project>

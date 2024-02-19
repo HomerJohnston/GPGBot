@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using PercivalBot.VersionControlSystems.Interface;
 
-namespace GPGBot.VersionControlSystems
+namespace PercivalBot.VersionControlSystems
 {
-	internal class GitVCS : IVersionControlSystem
+    internal class GitVCS : IVersionControlSystem
 	{
 		public GitVCS(Config.VersionControl config)
 		{

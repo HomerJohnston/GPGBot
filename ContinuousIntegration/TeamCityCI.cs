@@ -1,4 +1,5 @@
-﻿using Perforce.P4;
+﻿using PercivalBot.ContinuousIntegration.Interface;
+using Perforce.P4;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,9 +9,9 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace GPGBot.ContinuousIntegration
+namespace PercivalBot.ContinuousIntegration
 {
-	public class TeamCityCI : CIBase, IContinuousIntegrationSystem
+    public class TeamCityCI : BaseCI, IContinuousIntegrationSystem
 	{
 		public TeamCityCI(Config.ContinuousIntegration config) : base(config)
 		{

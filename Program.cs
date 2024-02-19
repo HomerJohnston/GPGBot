@@ -1,13 +1,21 @@
 ﻿using System.Threading.Tasks;
 using System;
-using GPGBot.ContinuousIntegration;
-using GPGBot.VersionControlSystems;
+using PercivalBot.ContinuousIntegration;
+using PercivalBot.VersionControlSystems;
 using System.Runtime.InteropServices;
-using GPGBot.ChatClients;
-using GPGBot.EmbedBuilders;
-using GPGBot.Config;
+using PercivalBot.ChatClients;
+using PercivalBot.Config;
+using PercivalBot.Core;
+using PercivalBot.ChatClients.Interface;
+using PercivalBot.ContinuousIntegration.Interface;
+using PercivalBot.VersionControlSystems.Interface;
 
-namespace GPGBot
+using PercivalBot.Enums;
+using PercivalBot.Structs;
+using PercivalBot.ChatClients.Discord;
+using PercivalBot.ChatClients.Slack;
+
+namespace PercivalBot
 {
     public class Program
 	{
@@ -15,6 +23,7 @@ namespace GPGBot
 		// ========================================================================================
 		// Main variables
 		// ========================================================================================
+
 //#if Windows // Fun fact: VS's "publish" function won't fucking use these OS directives, thanks C#, so instead I'll just assume that I will only ever debug on windows...
 #if DEBUG
 		[DllImport("Kernel32")]
@@ -71,7 +80,7 @@ namespace GPGBot
 		// ========================================================================================
 		// State
 		// ========================================================================================
-		static Bot? bot;
+		static Percival? bot;
 
 		// ========================================================================================
 		// API
