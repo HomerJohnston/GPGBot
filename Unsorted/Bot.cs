@@ -202,9 +202,13 @@ namespace GPGBot
 			string user = queryParams["user"] ?? string.Empty;
 			string branch = queryParams["branch"] ?? string.Empty; // branch is used for potential git compatibility only; p4 triggers %stream% is bugged and cannot send stream name
 
+			await Log($"OnCommit: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}");
+
+
 			// workaround for p4 trigger bug - no sending of stream name capability. query for it instead.
 			if (branch == string.Empty)
 			{
+				await Log("No branch supplied, trying to grab stream using VCS method.");
 				branch = versionControlSystem.GetStream(change, client) ?? string.Empty;
 			}
 
@@ -224,7 +228,6 @@ namespace GPGBot
 		{
 			List<CommitResponse> matchedCommits = commitResponses.FindAll(spec => spec.Name == branch);
 
-			await Log($"OnCommit: change {NoneOr(changeID)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}");
 
 			string commitDescription = versionControlSystem.GetCommitDescription(changeID) ?? "<No description>";
 

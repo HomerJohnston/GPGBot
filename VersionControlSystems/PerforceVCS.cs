@@ -60,14 +60,8 @@ namespace GPGBot.VersionControlSystems
 
 		public string? GetStream(string? change, string? client)
 		{
-			Console.WriteLine("GetStream(" + (change ?? "NULL CHANGE") + ", " + (client ?? "NULL CLIENT") + ")");
-			
 			connection.Client.Name = client;
-
-			Console.WriteLine("Connection.UserName: " + connection.UserName.ToString());
-			Console.WriteLine("Connection.GetActiveTicket(): " + connection.GetActiveTicket());
-			Console.WriteLine("Connection.Server.Address: " + connection.Server.Address);
-
+			
 			try
 			{
 				Options o = new Options();
@@ -81,7 +75,7 @@ namespace GPGBot.VersionControlSystems
 				return null;
 			}
 
-			Console.WriteLine("Here's the connection stream we found: " + connection.Client.Stream);
+			Console.WriteLine($"Found stream {connection.Client.Stream} for client {client}");
 
 			return connection.Client.Stream;
 		}
