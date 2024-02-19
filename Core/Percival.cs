@@ -15,6 +15,8 @@ using PercivalBot.VersionControlSystems.Interface;
 
 using PercivalBot.Enums;
 using PercivalBot.Structs;
+using Microsoft.VisualBasic;
+using Discord;
 
 namespace PercivalBot.Core
 {
@@ -208,15 +210,18 @@ namespace PercivalBot.Core
 			// workaround for p4 trigger bug - no sending of stream name capability. query for it instead.
 			if (!commit.HasBranch())
             {
-                await Log("No branch supplied, trying to grab stream using VCS method.");
+                await Log("No branch supplied, trying to grab stream using VCS method...");
                 commit.Branch = versionControlSystem.GetStream(change, client) ?? string.Empty;
             }
 
             if (!commit.IsValid(out string error))
             {
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await Log($"Commit POST was INVALID - {error}");
-                await context.Response.Send($"Commit POST was INVALID - {error}");
+
+                string msg = $"Commit POST was INVALID - {error}";
+
+				await Log(msg);
+                await context.Response.Send(msg);
                 return;
             }
 
@@ -312,8 +317,9 @@ namespace PercivalBot.Core
             return await chatClient.PostCommitMessage(commitEmbedData, webhook.ID);
         }
 
-        // --------------------------------------
-        async Task OnBuildStatusUpdate(HttpContextBase context)
+		#region Build Status Updates
+		// --------------------------------------
+		async Task OnBuildStatusUpdate(HttpContextBase context)
         {
             var queryParams = GetQueryParams(context);
 
@@ -323,190 +329,165 @@ namespace PercivalBot.Core
             string buildID = queryParams["buildID"] ?? string.Empty;
             string buildStatusParam = queryParams["buildStatus"] ?? string.Empty;
 
-            await Log($"OnBuildStatusUpdate, changeID: {changeID}, jobName: {jobName}, buildNumber: {buildNumber}, buildID: {buildID}, buildStatus: {buildStatusParam}");
+            BuildStatusUpdateRequest buildStatusUpdate = new BuildStatusUpdateRequest(changeID, jobName, buildNumber, buildID, buildStatusParam);
 
-            EBuildStatus buildStatus;
-
-            if (changeID == string.Empty)
+            if (!buildStatusUpdate.IsValid(out string error))
             {
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send($"OnBuildStatusUpdate - no changeID parameter specified, ignoring!");
+
+                string msg = $"BuildStatusUpdate POST was INVALID - {error}";
+
+				await Log(msg);
+                await context.Response.Send(msg);
                 return;
             }
 
-            if (jobName == string.Empty || buildStatusParam == string.Empty)
-            {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send("OnBuildStatusUpdate - no jobName parameter specified, ignoring!");
-                return;
-            }
-
-            if (buildNumber == string.Empty)
-            {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send("OnBuildStatusUpdate - no buildNumber parameter specified, ignoring!");
-                return;
-            }
-
-            if (buildID == string.Empty)
-            {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send("OnBuildStatusUpdate - no buildID parameter specified, ignoring!");
-                return;
-            }
-
-            if (buildStatusParam == string.Empty)
-            {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send("OnBuildStatusUpdate - no buildStatus parameter specified, ignoring!");
-                return;
-            }
-
-            if (buildID == string.Empty)
-            {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send($"OnBuildStatusUpdate - no buildID parameter specified, ignoring!");
-                return;
-            }
-
-            if (!Enum.TryParse(buildStatusParam, true, out buildStatus))
-            {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send($"OnBuildStatusUpdate - failed to parse a build status from {buildStatusParam}, ignoring!");
-                return;
-            }
-
-            await Log($"OnBuildStatusUpdate - Valid, changeID: {changeID}, jobName: {jobName}, buildNumber: {buildNumber}, buildID: {buildID}, buildStatus: {buildStatus}");
-
-            await HandleValidBuildStatusUpdate(context, changeID, jobName, buildNumber, buildID, buildStatus);
+            await HandleValidBuildStatusUpdate(context, buildStatusUpdate);
         }
 
         // --------------------------------------
-        private async Task HandleValidBuildStatusUpdate(HttpContextBase context, string changeID, string jobName, string buildNumber, string buildID, EBuildStatus buildStatus)
+        private async Task HandleValidBuildStatusUpdate(HttpContextBase context, BuildStatusUpdateRequest update)
         {
-            BuildRecord record = new BuildRecord(jobName, buildNumber, buildID);
+			await Log($"OnBuildStatusUpdate - Valid, changeID: {update.ChangeID}, jobName: {update.JobName}, buildNumber: {update.BuildNumber}, buildID: {update.BuildID}, buildStatus: {update.Status}");
 
-            List<BuildJob> matchedJobs = buildJobs.FindAll(spec => spec.Name == jobName);
-
-            string result = string.Empty;
+            List<BuildJob> matchedJobs = buildJobs.FindAll(spec => spec.Name == update.JobName);
 
             if (matchedJobs.Count == 0)
             {
-                result += $"Config warning: found no build jobs named {jobName} in config entries to post status for!";
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send(result);
-
-                await Log($"Config warning: found no build jobs named {jobName} in config entries to post status for!");
-
-                return;
+				await LogAndReply($"Config warning: found no build jobs named {update.JobName} in config entries to post status for!\n", HttpStatusCode.InternalServerError, context);
+				return;
             }
-
-            if (matchedJobs.Count > 1)
+            else if (matchedJobs.Count > 1)
             {
-                result += $"Config warning: found multiple build jobs named {jobName}, only using the first one!\n";
-            }
+				await LogAndReply($"Config warning: found multiple build jobs named {update.JobName}, there must only be one - aborting!\n", HttpStatusCode.InternalServerError, context);
+				return;
+			}
 
             BuildJob buildJob = matchedJobs.First();
 
             if (buildJob.PostChannel == null)
             {
-                result += $"Config warning: {jobName} has no post channel set!";
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await context.Response.Send(result);
+                await LogAndReply($"Config warning: {update.JobName} has no post channel set!", HttpStatusCode.InternalServerError, context);
                 return;
             }
 
-            if (buildStatus == EBuildStatus.Running)
+			BuildRecord record = new BuildRecord(update.JobName, update.BuildNumber, update.BuildID);
+
+			if (update.Status == EBuildStatus.Running)
             {
-                if (RunningBuildMessages.ContainsKey(record))
-                {
-                    result += $"Received multiple start signals for {jobName}, build {buildID}, ignoring!";
-                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.Send(result);
-                    return;
-                }
-
-                ulong? message = await PostBuildStatus(changeID, jobName, buildNumber, buildID, buildStatus, buildJob.PostChannel);
-
-                if (message == null)
-                {
-                    result += "Failed to post message!";
-                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.Send(result);
-                    return;
-                }
-
-                RunningBuildMessages.Add(record, (ulong)message);
-
+                await PostBuildRunning(context, update, record, buildJob);
             }
             else
             {
-                ulong runningMessage;
-
-                if (!RunningBuildMessages.TryGetValue(record, out runningMessage))
-                {
-                    result += $"Received a build status update for {jobName} build {buildID} but there was no build in progress for this, ignoring!";
-                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.Send(result);
-                    return;
-                }
-
-                await chatClient.DeleteMessage(runningMessage, buildJob.PostChannel);
-
-                RunningBuildMessages.Remove(record);
-
-                ulong? newstatusMessage = await PostBuildStatus(changeID, jobName, buildNumber, buildID, buildStatus, buildJob.PostChannel);
-
-                if (newstatusMessage == null)
-                {
-                    result += $"Failed to post build status message, error unknown!";
-                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.Send(result);
-                    return;
-                }
-
-                if (buildStatus != EBuildStatus.Succeeded)
-                {
-                    PreviousBuildMessages.TryAdd(buildJob, new List<ulong>());
-                    PreviousBuildMessages[buildJob].Add((ulong)newstatusMessage);
-                }
-                else
-                {
-                    if (PreviousBuildMessages.TryGetValue(buildJob, out List<ulong>? existingMessages) && existingMessages != null)
-                    {
-                        foreach (ulong messageID in existingMessages)
-                        {
-                            await chatClient.DeleteMessage(messageID, buildJob.PostChannel);
-                        }
-
-                        existingMessages.Clear();
-                        existingMessages.Add((ulong)newstatusMessage);
-                    }
-                }
+                await PostBuildCompletion(context, update, record, buildJob);
             }
 
-            result += "Success";
-            context.Response.StatusCode = (int)HttpStatusCode.OK;
-            await context.Response.Send(result);
+            if (!context.Response.ResponseSent)
+            {
+                await LogAndReply("Unknown error! Failed to post build status.", HttpStatusCode.InternalServerError, context);
+            }
         }
 
-        // --------------------------------------
-        public async Task<ulong?> PostBuildStatus(string changeID, string jobName, string buildNumber, string buildID, EBuildStatus buildStatus, string channelName)
-        {
-            BuildStatusEmbedData embedData = new BuildStatusEmbedData();
-            embedData.changeID = changeID;
-            embedData.buildConfig = jobName;
-            embedData.buildNumber = buildNumber;
-            embedData.buildID = buildID;
-            embedData.buildStatus = buildStatus;
+		// --------------------------------------
+		private async Task PostBuildRunning(HttpContextBase context, BuildStatusUpdateRequest update, BuildRecord record, BuildJob buildJob)
+		{
+            if (buildJob.PostChannel == null)
+			{
+                await LogAndReply($"Config warning: {buildJob.Name} has no post channel set!",  HttpStatusCode.BadRequest, context);
+				return;
+			}
+
+			if (RunningBuildMessages.ContainsKey(record))
+			{
+                await LogAndReply($"Received multiple start signals for {update.JobName}, build {update.BuildID}, ignoring!", HttpStatusCode.BadRequest, context);
+				return;
+			}
+
+			ulong? message = await PostBuildStatus(update, buildJob.PostChannel);
+
+			if (message == null)
+			{
+                await LogAndReply($"Unknown error, failed to post message!", HttpStatusCode.InternalServerError, context);
+				return;
+			}
+
+			RunningBuildMessages.Add(record, (ulong)message);
+
+            await LogAndReply($"Success", HttpStatusCode.OK, context);
+		}
+
+		// --------------------------------------
+		private async Task PostBuildCompletion(HttpContextBase context, BuildStatusUpdateRequest update, BuildRecord record, BuildJob buildJob)
+		{
+			ulong runningMessage;
+
+			if (!RunningBuildMessages.TryGetValue(record, out runningMessage))
+			{
+                await LogAndReply($"Received a build status update for {update.JobName} build {update.BuildID} but there was no build in progress for this, ignoring!", HttpStatusCode.BadRequest, context);
+				return;
+			}
+
+            if (buildJob.PostChannel == null)
+			{
+				await LogAndReply($"Config warning: {buildJob.Name} has no post channel set!", HttpStatusCode.InternalServerError, context);
+				return;
+			}
+
+			await chatClient.DeleteMessage(runningMessage, buildJob.PostChannel);
+
+			RunningBuildMessages.Remove(record);
+
+			ulong? message = await PostBuildStatus(update, buildJob.PostChannel);
+
+			if (message == null)
+			{
+                await LogAndReply($"Failed to post build status message, error unknown!", HttpStatusCode.BadRequest, context);
+				return;
+			}
+
+			if (update.Status != EBuildStatus.Succeeded)
+			{
+				PreviousBuildMessages.TryAdd(buildJob, new List<ulong>());
+				PreviousBuildMessages[buildJob].Add((ulong)message);
+			}
+			else
+			{
+				if (PreviousBuildMessages.TryGetValue(buildJob, out List<ulong>? existingMessages) && existingMessages != null)
+				{
+					foreach (ulong existingMessage in existingMessages)
+					{
+						await chatClient.DeleteMessage(existingMessage, buildJob.PostChannel);
+					}
+
+					existingMessages.Clear();
+					existingMessages.Add((ulong)message);
+				}
+			}
+
+			RunningBuildMessages.Add(record, (ulong)message);
+
+			await LogAndReply($"Success", HttpStatusCode.OK, context);
+		}
+
+		// --------------------------------------
+		public async Task<ulong?> PostBuildStatus(BuildStatusUpdateRequest update, string channelName)
+		{
+			BuildStatusEmbedData embedData = new BuildStatusEmbedData();
+
+            embedData.changeID = update.ChangeID;
+            embedData.buildConfig = update.JobName;
+            embedData.buildNumber = update.BuildNumber;
+            embedData.buildID = update.BuildID;
+            embedData.buildStatus = update.Status;
 
             ulong? message = await chatClient.PostBuildStatusEmbed(embedData, channelName);
 
             return message;
         }
+		#endregion
 
-        // --------------------------------------
-        public async Task Shutdown(HttpContextBase context)
+		// --------------------------------------
+		public async Task Shutdown(HttpContextBase context)
         {
             await Log("Shutting down!");
 
@@ -543,7 +524,15 @@ namespace PercivalBot.Core
             return queryParams;
         }
 
-        static void LogSync(string message)
+		private async Task LogAndReply(string msg, HttpStatusCode code, HttpContextBase context)
+		{
+			await Log(msg);
+
+			context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+			await context.Response.Send(msg);
+		}
+
+		static void LogSync(string message)
         {
             Console.WriteLine(message);
         }

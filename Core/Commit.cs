@@ -11,9 +11,9 @@ namespace PercivalBot.Core
 {
 	public class Commit
 	{
-		public string Change { get; set; }
-		public string Client { get; set; }
-		public string User { get; set; }
+		public string Change { get; }
+		public string Client { get; }
+		public string User { get; }
 		public string Branch { get; set; }
 
 		public Commit(string change, string client, string user, string branch)
@@ -24,11 +24,7 @@ namespace PercivalBot.Core
 			Branch = branch;
 		}
 
-		public bool HasBranch()
-		{
-			return Branch != string.Empty;
-		}
-
+		// --------------------------------------
 		public bool IsValid(out string error)
 		{
 			bool errorStatus = false;
@@ -61,6 +57,13 @@ namespace PercivalBot.Core
 			return errorStatus;
 		}
 
+		// --------------------------------------
+		public bool HasBranch()
+		{
+			return Branch != string.Empty;
+		}
+
+		// --------------------------------------
 		public override string ToString()
 		{
 			return ($"Change: {NoneOr(Change)}, Client: {NoneOr(Client)}, User: {NoneOr(User)}, Branch {NoneOr(Branch)}");
@@ -71,5 +74,6 @@ namespace PercivalBot.Core
 		{
 			return s == string.Empty ? "NONE" : s;
 		}
+
 	}
 }

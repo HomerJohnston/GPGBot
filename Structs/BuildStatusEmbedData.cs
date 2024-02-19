@@ -9,11 +9,10 @@ namespace PercivalBot.Structs
 {
 	public struct BuildStatusEmbedData
 	{
+		public string changeID;
 		public string buildConfig;
 		public string buildNumber;
 		public string buildID;
 		public EBuildStatus buildStatus;
-		//public string text;
-		public string changeID;
 	}
 }
