@@ -64,8 +64,8 @@ namespace GPGBot.Config
 	public class CommitResponse
 	{
 		public string? Name { get; set; }
-		public string? BuildJob { get; set; }
-		public string? CommitWebhook { get; set; }
+		public string? StartBuild { get; set; }
+		public string? PostWebhook { get; set; }
 	}
 
 	public class CommitResponses
@@ -105,7 +105,7 @@ namespace GPGBot.Config
 
 	public class BuildJobs
 	{
-		public List<BuildJob>? Job { get; set; }
+		public List<BuildJob>? Build { get; set; }
 	}
 	
 	// ============================================================================================
@@ -118,7 +118,7 @@ namespace GPGBot.Config
 		public VersionControl vcs = new();
 		public CommitResponses commitResponses = new();
 		public NamedWebhooks namedWebhooks = new();
-		public BuildJobs buildJobs = new();
+		public BuildJobs ciJobs = new();
 
 		public BotConfig(string configSource = "config.xml")
 		{
@@ -145,7 +145,7 @@ namespace GPGBot.Config
 			Bind(config, "webserver", webserver);
 			Bind(config, "namedWebhooks", namedWebhooks);
 			Bind(config, "commitResponses", commitResponses);
-			Bind(config, "buildJobs", buildJobs);
+			Bind(config, "ciJobs", ciJobs);
 		}
 
 		private void Bind<T>(IConfigurationSection A, IConfigurationSection B, T destination)

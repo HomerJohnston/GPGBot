@@ -18,6 +18,16 @@ namespace GPGBot.VersionControlSystems
 			throw new NotImplementedException();
 		}
 
+		public List<FileActionSpec> GetFileActions(string? change)
+		{
+			throw new NotImplementedException();
+		}
+
+		public void GetRequiredActionsBasedOnChanges(string? change, out bool code, out bool wwise)
+		{
+			throw new NotImplementedException();
+		}
+
 		public string? GetStream(string? change, string? client)
 		{
 			throw new NotImplementedException();

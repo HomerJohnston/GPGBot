@@ -79,46 +79,34 @@ namespace GPGBot
 			return string.Empty;
 		}
 
-		public virtual string GetChangesURL(string buildConfigName, ulong buildID)
+		public virtual string GetChangesURL(string buildConfigName, string buildID)
 		{
 			return string.Empty;
 		}
 
-		public virtual string GetConsoleURL(string buildConfigName, ulong buildID)
+		public virtual string GetConsoleURL(string buildConfigName, string buildID)
 		{
 			return string.Empty;
 		}
 
 		public Embed ConstructBuildStatusEmbed(BuildStatusEmbedData embedData)//int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName)
 		{
-			string buildWebURL = GetBuildURL(embedData.buildConfig);
-			string buildConsoleURL = GetConsoleURL(embedData.buildConfig, embedData.buildID);
-			string buildChangesURL = GetChangesURL(embedData.buildConfig, embedData.buildID);
+			string escapedBuildConfig = Uri.EscapeDataString(embedData.buildConfig);
+			string escapedBuildID = Uri.EscapeDataString(embedData.buildID.ToString());
 
-			string? buildWebURLFixed = buildWebURL.Replace(" ", "%20");// System.Web.HttpUtility.UrlEncode(buildWebURL);
-
-			if (buildWebURLFixed == null)
-			{
-				throw new Exception("Invalid URL!");
-			}
-			else
-			{
-				Console.WriteLine(buildWebURLFixed);
-			}
-
+			string buildWebURL = GetBuildURL(escapedBuildConfig);
+			string buildConsoleURL = GetConsoleURL(escapedBuildConfig, escapedBuildID);
+			string buildChangesURL = GetChangesURL(escapedBuildConfig, escapedBuildID);
 
 			string authorName = string.Format("{0} Build #{1}: {2}", embedData.buildConfig, embedData.buildID, embedData.buildStatus);
 
-			string description;
-
 			EmbedStyle style = EmbedStyles[embedData.buildStatus];
 			Color color = new(UInt32.Parse(style.Color));
-
-			description = string.Format($"{embedData.text} change {embedData.changeID} \u2022 [changes]({buildChangesURL}) \u2022 [log]({buildConsoleURL})");
+			string dot = "\u2022";
 
 			EmbedBuilder builder = new EmbedBuilder()
-				.WithAuthor(authorName, style.IconUrl, buildWebURLFixed)
-				.WithDescription(description)
+				.WithAuthor(authorName, style.IconUrl, buildWebURL)
+				.WithDescription($"{style.Description} change {embedData.changeID} {dot} [changes]({buildChangesURL}) {dot} [log]({buildConsoleURL})")
 				.WithColor(color);
 
 			return builder.Build();

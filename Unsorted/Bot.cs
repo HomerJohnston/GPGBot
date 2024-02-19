@@ -11,6 +11,9 @@ using WatsonWebserver;
 using WatsonWebserver.Core;
 using WatsonWebserver.Extensions.HostBuilderExtension;
 using System.Linq;
+using Perforce.P4;
+
+// p4 -Ztag -F "%depotFile%|%action%" files @=93
 
 namespace GPGBot
 {
@@ -29,10 +32,10 @@ namespace GPGBot
 		string? webserverKey;
 
 		// --------------------------------------
-		readonly List<Config.BuildJob> buildJobs;
-		readonly List<Config.CommitResponse> commitResponses;
+		readonly List<BuildJob> buildJobs;
+		readonly List<CommitResponse> commitResponses = new();
 		readonly List<string> commitIgnorePhrases = new();
-		readonly List<Config.Webhook> webhooks;
+		readonly List<Webhook> webhooks;
 
 		readonly Dictionary<BuildRecord, ulong> RunningBuildMessages = new();
 		readonly Dictionary<BuildJob, List<ulong>> PreviousBuildMessages = new();
@@ -46,19 +49,46 @@ namespace GPGBot
 			chatClient = inChatClient;
 
 			// Set up other config data
-			commitResponses = config.commitResponses.Responses ?? new();
 
-			foreach (var x in config.commitResponses.Ignore ?? new())
+			if (config.commitResponses.Responses == null)
 			{
-				/*
-				if (x.Phrase != null)
+				LogSync("Warning: no commit responses found in config file!");
+				commitResponses = new List<CommitResponse>();
+			}
+			else
+			{
+				List<CommitResponse> fallthroughResponses = new();
+
+				foreach (CommitResponse response in config.commitResponses.Responses)
 				{
-					commitIgnorePhrases.Add(x.Phrase);
+					if (response.StartBuild == null && response.PostWebhook == null)
+					{
+						fallthroughResponses.Add(response);
+						continue;
+					}
+				
+					commitResponses.Add(response);
+
+					foreach (CommitResponse fallthroughResponse in fallthroughResponses)
+					{
+						fallthroughResponse.StartBuild = response.StartBuild;
+						fallthroughResponse.PostWebhook = response.PostWebhook;
+						commitResponses.Add(fallthroughResponse);
+					}
 				}
-				*/
 			}
 
-			buildJobs = config.buildJobs.Job ?? new();
+			if (config.commitResponses.Ignore == null)
+			{
+				LogSync("No commit ignore phrases found in config file.");
+				commitIgnorePhrases = new List<string>();
+			}
+			else
+			{
+				commitIgnorePhrases.AddRange(config.commitResponses.Ignore);
+			}
+
+			buildJobs = config.ciJobs.Build ?? new();
 			webhooks = config.namedWebhooks.Webhook ?? new();
 
 			// Set up HTTP server
@@ -119,8 +149,7 @@ namespace GPGBot
 
 			HostBuilder hostBuilder = new HostBuilder(address, port, false, DefaultRoute)
 				.MapAuthenticationRoute(AuthenticateRequest)
-				.MapParameteRoute(HttpMethod.POST, "/on-commit", OnCommitContent, true) // Handles triggers from source control system
-				.MapParameteRoute(HttpMethod.POST, "/on-commit-code", OnCommitCode, true) // Handles triggers from source control system
+				.MapParameteRoute(HttpMethod.POST, "/on-commit", OnCommit, true) // Handles triggers from source control system
 				.MapParameteRoute(HttpMethod.POST, "/build-status-update", OnBuildStatusUpdate, true) // Handles status updates from continuous integration
 				.MapStaticRoute(HttpMethod.GET, "/shutdown", Shutdown, true);
 
@@ -163,19 +192,8 @@ namespace GPGBot
 		}
 		#endregion
 
-		// --------------------------------------
-		async Task OnCommitContent(HttpContextBase context)
-		{
-			await OnCommit(context, false);
-		}
-
-		// --------------------------------------
-		async Task OnCommitCode(HttpContextBase context)
-		{
-			await OnCommit(context, true);
-		}
-
-		async Task OnCommit(HttpContextBase context, bool doBuild)
+        // --------------------------------------
+		async Task OnCommit(HttpContextBase context)
 		{
 			var queryParams = GetQueryParams(context);
 
@@ -193,25 +211,28 @@ namespace GPGBot
 			if (change == string.Empty || client == string.Empty || user == string.Empty || branch == string.Empty)
 			{
 				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-				await context.Response.Send($"Commit POST was INVALID - something wasn't set: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}, build {doBuild}");
+				await Log($"Commit POST was INVALID - something wasn't set: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}");
+				await context.Response.Send($"Commit POST was INVALID - something wasn't set: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}");
 				return;
 			}
 
-			await HandleValidCommit(context, change, client, user, branch, doBuild);
+			await HandleValidCommit(context, change, client, user, branch);
 		}
 		
-		async Task HandleValidCommit(HttpContextBase context, string change, string client, string user, string branch, bool doBuild)
+        // --------------------------------------
+		async Task HandleValidCommit(HttpContextBase context, string changeID, string client, string user, string branch)
 		{
-			List<Config.CommitResponse> matchedCommits = commitResponses.FindAll(spec => spec.Name == branch);
+			List<CommitResponse> matchedCommits = commitResponses.FindAll(spec => spec.Name == branch);
 
-			await Log($"OnCommit: change {NoneOr(change)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}, build {doBuild}");
+			await Log($"OnCommit: change {NoneOr(changeID)}, client {NoneOr(client)}, user {NoneOr(user)}, branch {NoneOr(branch)}");
 
-			string commitDescription = versionControlSystem.GetCommitDescription(change) ?? "<No description>";
+			string commitDescription = versionControlSystem.GetCommitDescription(changeID) ?? "<No description>";
 
 			bool bIgnore = false;
 
 			foreach (string ignorePhrase in commitIgnorePhrases)
 			{
+				// TODO populate the ignores!
 				if (commitDescription.StartsWith(ignorePhrase, StringComparison.InvariantCultureIgnoreCase))
 				{
 					bIgnore = true;
@@ -222,57 +243,63 @@ namespace GPGBot
 			if (bIgnore)
 			{
 				context.Response.StatusCode = (int)HttpStatusCode.OK;
-				await context.Response.Send($"Ignored commit trigger for change {change}; found matching commit ignore");
+				await Log($"Ignored commit trigger for change {changeID}; found matching commit ignore");
+				await context.Response.Send($"Ignored commit trigger for change {changeID}; found matching commit ignore");
 			}
 
 			if (matchedCommits.Count == 0)
 			{
 				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+				await Log($"No matching action specs found! Ignoring this commit.");
 				await context.Response.Send($"No matching action specs found! Ignoring this commit.");
 			}
+
+			bool containedCode;
+			bool containedWwise;
+			versionControlSystem.GetRequiredActionsBasedOnChanges(changeID, out containedCode, out containedWwise);
+
+			await Log($"Change contained code: {containedCode}; Change contained wwise: {containedWwise}");
 
 			// Simple work to avoid posting the same commit twice
 			HashSet<string> commitPostedTo = new();
 
 			foreach (Config.CommitResponse spec in matchedCommits)
 			{
-				
-				if (spec.CommitWebhook != null && !commitPostedTo.Contains(spec.CommitWebhook))
+				if (spec.PostWebhook != null && !commitPostedTo.Contains(spec.PostWebhook))
 				{
-					string? commitWebhook = spec.CommitWebhook;
+					string? commitWebhook = spec.PostWebhook;
 
 					if (commitWebhook != null)
 					{
-						await PostCommitMessage(change, user, branch, client, commitWebhook, commitDescription, doBuild);
-						commitPostedTo.Add(spec.CommitWebhook);
+						await PostCommitMessage(changeID, user, branch, client, commitWebhook, commitDescription, containedCode || containedWwise);
+						commitPostedTo.Add(spec.PostWebhook);
 					}
 				}
 
-				if (doBuild)
+				if (containedCode || containedWwise)
 				{
-					string? jobName = spec.BuildJob;
+					string? jobName = spec.StartBuild;
 
 					if (jobName != null)
 					{
-						bool result = await continuousIntegrationSystem.StartJob(jobName, change);
-						Console.WriteLine($"Build {jobName} start result: {result}");
-					}
-					else
-					{
-						Console.WriteLine("Commit contained build request flag, but no build config was specified - doing nothing!");
+						await Log($"Attempting to start build: {jobName} at change: {changeID}");
+						bool result = await continuousIntegrationSystem.StartJob(jobName, changeID, containedCode, containedWwise);
+						await Log($"Build {jobName} start result: {result}");
 					}
 				}
 			}
 
 			context.Response.StatusCode = (int)HttpStatusCode.OK;
-			await context.Response.Send($"OnCommit: change {change}, client {client}, user {user}, stream/branch {branch}, build {doBuild}");
+			await context.Response.Send($"OnCommit: change {changeID}, client {client}, user {user}, stream/branch {branch}, buildCode {containedCode}, buildWwise {containedWwise}");
 		}
 
+        // --------------------------------------
 		private string NoneOr(string s)
 		{
 			return (s == string.Empty) ? "NONE" : s;
 		}
 
+        // --------------------------------------
 		private async Task<ulong?> PostCommitMessage(string change, string user, string branch, string client, string commitWebhook, string description, bool doBuild)
 		{
 			Webhook? webhook = webhooks.Find(x => x.Name == commitWebhook);
@@ -294,62 +321,78 @@ namespace GPGBot
 		}
 
 		// --------------------------------------
-
 		async Task OnBuildStatusUpdate(HttpContextBase context)
 		{
 			var queryParams = GetQueryParams(context);
 
+			string changeID = queryParams["changeID"] ?? string.Empty;
 			string jobName = queryParams["jobName"] ?? string.Empty;
-			string buildIDParam = queryParams["buildID"] ?? string.Empty;
+			string buildNumber = queryParams["buildNumber"] ?? string.Empty;
+			string buildID = queryParams["buildID"] ?? string.Empty;
 			string buildStatusParam = queryParams["buildStatus"] ?? string.Empty;
 
-			await Log($"OnBuildStatusUpdate {jobName} {buildIDParam} {buildStatusParam}");
+			await Log($"OnBuildStatusUpdate, changeID: {changeID}, jobName: {jobName}, buildNumber: {buildNumber}, buildID: {buildID}, buildStatus: {buildStatusParam}");
 
-			ulong buildID;
 			EBuildStatus buildStatus;
 
-			context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+			if (changeID == string.Empty)
+			{
+				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+				await context.Response.Send($"OnBuildStatusUpdate - no changeID parameter specified, ignoring!");
+				return;
+			}
 
 			if (jobName == string.Empty || buildStatusParam == string.Empty)
 			{
+				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
 				await context.Response.Send("OnBuildStatusUpdate - no jobName parameter specified, ignoring!");
 				return;
 			}
 
-			if (buildIDParam == string.Empty)
+			if (buildNumber == string.Empty)
 			{
+				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+				await context.Response.Send("OnBuildStatusUpdate - no buildNumber parameter specified, ignoring!");
+				return;
+			}
+
+			if (buildID == string.Empty)
+			{
+				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
 				await context.Response.Send("OnBuildStatusUpdate - no buildID parameter specified, ignoring!");
 				return;
 			}
 
 			if (buildStatusParam == string.Empty)
 			{
+				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
 				await context.Response.Send("OnBuildStatusUpdate - no buildStatus parameter specified, ignoring!");
 				return;
 			}
 
-			if (!ulong.TryParse(buildIDParam, out buildID)) 
+			if (buildID == string.Empty) 
 			{
-				await context.Response.Send($"OnBuildStatusUpdate - failed to parse a build ID from {buildIDParam}, ignoring!");
+				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+				await context.Response.Send($"OnBuildStatusUpdate - no buildID parameter specified, ignoring!");
 				return;
 			}
 
 			if (!EBuildStatus.TryParse(buildStatusParam, true, out buildStatus))
 			{
+				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
 				await context.Response.Send($"OnBuildStatusUpdate - failed to parse a build status from {buildStatusParam}, ignoring!");
 				return;
 			}
 
-			await Log($"OnBuildStatusUpdate - Valid {jobName} {buildID} {buildStatus}");
+			await Log($"OnBuildStatusUpdate - Valid, changeID: {changeID}, jobName: {jobName}, buildNumber: {buildNumber}, buildID: {buildID}, buildStatus: {buildStatus}");
 
-			await HandleValidBuildStatusUpdate(context, jobName, buildID, buildStatus);
+			await HandleValidBuildStatusUpdate(context, changeID, jobName, buildNumber, buildID, buildStatus);
 		}
 
 		// --------------------------------------
-
-		private async Task HandleValidBuildStatusUpdate(HttpContextBase context, string jobName, ulong buildID, EBuildStatus buildStatus)
+		private async Task HandleValidBuildStatusUpdate(HttpContextBase context, string changeID, string jobName, string buildNumber, string buildID, EBuildStatus buildStatus)
 		{
-			BuildRecord record = new BuildRecord(jobName, buildID);
+			BuildRecord record = new BuildRecord(jobName, buildNumber, buildID);
 
 			List<BuildJob> matchedJobs = buildJobs.FindAll(spec => spec.Name == jobName);
 
@@ -391,7 +434,7 @@ namespace GPGBot
 					return;
 				}
 
-				ulong? message = await PostBuildStatus(jobName, buildID, buildStatus, buildJob.PostChannel);
+				ulong? message = await PostBuildStatus(changeID, jobName, buildNumber, buildID, buildStatus, buildJob.PostChannel);
 
 				if (message == null)
 				{
@@ -420,7 +463,7 @@ namespace GPGBot
 
 				RunningBuildMessages.Remove(record);
 
-				ulong? newstatusMessage = await PostBuildStatus(jobName, buildID, buildStatus, buildJob.PostChannel);
+				ulong? newstatusMessage = await PostBuildStatus(changeID, jobName, buildNumber, buildID, buildStatus, buildJob.PostChannel);
 
 				if (newstatusMessage == null)
 				{
@@ -451,16 +494,19 @@ namespace GPGBot
 			}
 
 			result += "Success";
-			context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+			context.Response.StatusCode = (int)HttpStatusCode.OK;
 			await context.Response.Send(result);
 		}
 
-		public async Task<ulong?> PostBuildStatus(string jobName, ulong buildID, EBuildStatus buildStatus, string channelName)
+        // --------------------------------------
+		public async Task<ulong?> PostBuildStatus(string changeID, string jobName, string buildNumber, string buildID, EBuildStatus buildStatus, string channelName)
 		{
 			BuildStatusEmbedData embedData = new BuildStatusEmbedData();
+			embedData.changeID = changeID;
 			embedData.buildConfig = jobName;
-			embedData.buildStatus = buildStatus;
+			embedData.buildNumber = buildNumber;
 			embedData.buildID = buildID;
+			embedData.buildStatus = buildStatus;
 
 			ulong? message = await chatClient.PostBuildStatusEmbed(embedData, channelName);
 

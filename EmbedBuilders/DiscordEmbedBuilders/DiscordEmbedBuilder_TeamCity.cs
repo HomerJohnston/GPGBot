@@ -15,14 +15,22 @@ namespace GPGBot.EmbedBuilders.DiscordEmbedBuilders
 			return string.Format($"{WebURL}/buildConfiguration/{buildConfigName}");
         }
 
-        public override string GetChangesURL(string buildConfigName, ulong buildID)
+        public override string GetChangesURL(string buildConfigName, string buildID)
         {
-            return string.Format($"{WebURL}/viewLog.html?buildId={buildID}&tab=buildChangesDiv");
+            string buildIDURL = GetBuildIDURL(buildConfigName, buildID);
+            return $"{buildIDURL}?buildTab=changes&showFiles=true&expandRevisionsSection=false";
         }
 
-        public override string GetConsoleURL(string buildConfigName, ulong buildID)
+        public override string GetConsoleURL(string buildConfigName, string buildID)
         {
-			return string.Format($"{WebURL}/viewLog.html?buildId={buildID}&tab=buildLog");
+			string buildIDURL = GetBuildIDURL(buildConfigName, buildID);
+			return $"{buildIDURL}?buildTab=log&showFiles=true&expandRevisionsSection=false";
+		}
+
+        private string GetBuildIDURL(string buildConfigName, string buildID)
+        {
+			string buildURL = GetBuildURL(buildConfigName);
+			return $"{buildURL}/{buildID}";
 		}
 	}
 }

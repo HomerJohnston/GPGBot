@@ -12,8 +12,10 @@ namespace GPGBot.ContinuousIntegration
 		{
 		}
 
-		public async Task<bool> StartJob(string jobName)
+		public async Task<bool> StartJob(string jobName, bool buildCode, bool buildWwise)
 		{
+			throw new NotImplementedException();
+
 			HttpClient client = new();
 
 			FormUrlEncodedContent requestContent = new(new[] { new KeyValuePair<string, string>("text", "text"), });
@@ -30,7 +32,7 @@ namespace GPGBot.ContinuousIntegration
 			return false;
 		}
 
-		public Task<bool> StartJob(string jobName, string changeID)
+		public Task<bool> StartJob(string jobName, string changeID, bool buildCode, bool buildWwise)
 		{
 			throw new NotImplementedException();
 		}

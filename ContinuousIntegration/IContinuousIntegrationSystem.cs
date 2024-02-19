@@ -9,7 +9,6 @@ namespace GPGBot.ContinuousIntegration
 {
     public interface IContinuousIntegrationSystem
     {
-        Task<bool> StartJob(string jobName);
-        Task<bool> StartJob(string jobName, string changeID);
+        Task<bool> StartJob(string jobName, string changeID, bool buildCode, bool buildWwise);
     }
 }

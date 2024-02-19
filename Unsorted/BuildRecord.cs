@@ -9,13 +9,15 @@ namespace GPGBot
 	public struct BuildRecord
 	{
 		public string jobName;
-		public ulong buildID;
+		public string buildNumber;
+		public string buildID;
 		//public string changeID;
 		//public string user;
 
-		public BuildRecord(string jobName, ulong buildID)//, string changeID, string user)
+		public BuildRecord(string jobName, string buildNumber, string buildID)//, string changeID, string user)
 		{
 			this.jobName = jobName;
+			this.buildNumber = buildNumber;
 			this.buildID = buildID;
 			//this.changeID = changeID;
 			//this.user = user;

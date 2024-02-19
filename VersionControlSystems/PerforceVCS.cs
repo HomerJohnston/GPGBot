@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Perforce;
 using Perforce.P4;
@@ -126,6 +129,61 @@ namespace GPGBot.VersionControlSystems
 			Console.WriteLine("Server release: " + release);
 
 			return Task.CompletedTask;
+		}
+
+		public void GetRequiredActionsBasedOnChanges(string? change, out bool buildCode, out bool buildWwise)
+		{
+			buildCode = false;
+			buildWwise = false;
+
+			if (change == null)
+			{
+				return;
+			}
+
+			Process p = new Process();
+
+			p.StartInfo.UseShellExecute = false;
+			p.StartInfo.RedirectStandardOutput = true;
+			p.StartInfo.FileName = "p4";
+			p.StartInfo.Arguments = $"-ztag -F \"%depotFile%|%action%\" files @={change}";
+
+			p.Start();
+
+			string output = p.StandardOutput.ReadToEnd();
+
+			List<string> codeExtensions = new List<string> { ".h", ".cpp", ".cs" };
+			List<string> wwiseExtensions = new List<string> { ".wwu", ".wproj" };
+
+			foreach (string fileSpec in new LineReader(() => new StringReader(output)))
+			{
+				Console.WriteLine($"Examining... {fileSpec}");
+
+				int separator = fileSpec.LastIndexOf('|');
+				
+				string fileName = fileSpec.Substring(0, separator);
+				string action = fileSpec.Substring(separator + 1);
+
+				string ext = Path.GetExtension(fileName);
+
+				Console.WriteLine($"    Parsed extension: {ext}");
+
+				if (!buildCode && codeExtensions.Contains(ext))
+				{
+					buildCode = true;
+				}
+
+				if (!buildWwise && wwiseExtensions.Contains(ext))
+				{
+					buildWwise = true;
+				}
+
+				// Don't need to keep looking for anything else!
+				if (buildCode && buildWwise)
+				{
+					break;
+				}
+			}
 		}
 	}
 }

@@ -15,7 +15,7 @@ namespace GPGBot.EmbedBuilders.DiscordEmbedBuilders
             return string.Format("{0}/job/{1}", WebURL, buildConfigName);
         }
 
-        public override string GetChangesURL(string buildConfigName, ulong buildID)
+        public override string GetChangesURL(string buildConfigName, string buildID)
         {
             string buildURL = GetBuildURL(buildConfigName);
             string changesURL = string.Format("{0}/{1}/{2}", buildURL, buildID, "changes");
@@ -23,7 +23,7 @@ namespace GPGBot.EmbedBuilders.DiscordEmbedBuilders
             return changesURL;
         }
 
-        public override string GetConsoleURL(string buildConfigName, ulong buildID)
+        public override string GetConsoleURL(string buildConfigName, string buildID)
         {
             string buildURL = GetBuildURL(buildConfigName);
             string consoleURL = string.Format("{0}/{1}/{2}", buildURL, buildID, "console");

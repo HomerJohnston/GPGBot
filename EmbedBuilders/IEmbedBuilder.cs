@@ -11,9 +11,9 @@ namespace GPGBot.EmbedBuilders
 	{
 		string GetBuildURL(string buildConfigName);
 
-		string GetConsoleURL(string buildConfigName, ulong buildID);
+		string GetConsoleURL(string buildConfigName, string buildID);
 
-		string GetChangesURL(string buildConfigName, ulong buildID);
+		string GetChangesURL(string buildConfigName, string buildID);
 
 		Embed ConstructBuildStatusEmbed(BuildStatusEmbedData embedData);//int buildID, string embedTitle, string embedIconURL, Color embedColor, string embedDescription, int changeID, string userName, string buildConfigName);
 	}

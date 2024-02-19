@@ -41,9 +41,10 @@ namespace GPGBot
 	public struct BuildStatusEmbedData
 	{
 		public string buildConfig;
-		public ulong buildID;
+		public string buildNumber;
+		public string buildID;
 		public EBuildStatus buildStatus;
-		public string text;
+		//public string text;
 		public string changeID;
 	}
 
