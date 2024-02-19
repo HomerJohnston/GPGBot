@@ -49,4 +49,4 @@ SET "sshPath=%homedrive%%homepath%"
 SET "sshPath=%sshPath::=%"
 SET "sshPath=%sshPath:\=/%"
 
-rsync -e "ssh -o 'StrictHostKeyChecking no' -p 1939 -i /cygdrive/%sshPath%/.ssh/Swordfish" -r -z "/cygdrive/%percivalPath%/bin/Release/net6.0/publish/linux-x64/." "ubuntu@swordfish.ghostpeppergames.com:/opt/gpgbot"
+rsync -e "ssh -o 'StrictHostKeyChecking no' -p 1939 -i /cygdrive/%sshPath%/.ssh/Swordfish" -r -z "/cygdrive/%percivalPath%/bin/Release/net6.0/publish/linux-x64/." "ubuntu@swordfish.ghostpeppergames.com:/opt/percival"

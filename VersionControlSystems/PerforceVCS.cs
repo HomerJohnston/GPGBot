@@ -69,7 +69,7 @@ namespace PercivalBot.VersionControlSystems
 				Options o = new Options();
 				bool bResult = connection.Connect(null);
 
-				Console.WriteLine("Connected: " + bResult);
+				Console.WriteLine("Perforce connection result: " + bResult);
 			}
 			catch
 			{

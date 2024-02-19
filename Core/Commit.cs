@@ -27,34 +27,34 @@ namespace PercivalBot.Core
 		// --------------------------------------
 		public bool IsValid(out string error)
 		{
-			bool errorStatus = false;
+			bool valid = true;
 			error = string.Empty;
 
 			if (Change == string.Empty)
 			{
-				errorStatus = true;
+				valid = false;
 				error = string.Join(", ", error, "Change unset");
 			}
 
 			if (Client == string.Empty)
 			{
-				errorStatus = true;
+				valid = false;
 				error = string.Join(", ", error, "Client unset");
 			}
 
 			if (User == string.Empty)
 			{
-				errorStatus = true;
+				valid = false;
 				error = string.Join(", ", error += "User unset");
 			}
 
 			if (Branch == string.Empty)
 			{
-				errorStatus = true;
+				valid = false;
 				error = string.Join(", ", error += "Branch unset");
 			}
 
-			return errorStatus;
+			return valid;
 		}
 
 		// --------------------------------------

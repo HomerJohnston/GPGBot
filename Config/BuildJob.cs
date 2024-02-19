@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PercivalBot.Config
 {
-	public class BuildJob
+	public struct BuildJob
 	{
 		public string? Name { get; set; }
 		public string? PostChannel { get; set; }

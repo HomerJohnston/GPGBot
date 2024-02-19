@@ -16,14 +16,15 @@ namespace PercivalBot.ChatClients.Discord
         {
         }
 
-        public override string GetBuildURL(string buildConfigName)
+        public override string GetBuildURL(string buildConfigName, string buildID)
         {
-            return string.Format("{0}/job/{1}", WebURL, buildConfigName);
+            throw new NotImplementedException();
+            //return string.Format("{0}/job/{1}", WebURL, buildConfigName);
         }
 
         public override string GetChangesURL(string buildConfigName, string buildID)
         {
-            string buildURL = GetBuildURL(buildConfigName);
+            string buildURL = GetBuildURL(buildConfigName, buildID);
             string changesURL = string.Format("{0}/{1}/{2}", buildURL, buildID, "changes");
 
             return changesURL;
@@ -31,7 +32,7 @@ namespace PercivalBot.ChatClients.Discord
 
         public override string GetConsoleURL(string buildConfigName, string buildID)
         {
-            string buildURL = GetBuildURL(buildConfigName);
+            string buildURL = GetBuildURL(buildConfigName, buildID);
             string consoleURL = string.Format("{0}/{1}/{2}", buildURL, buildID, "console");
 
             return consoleURL;

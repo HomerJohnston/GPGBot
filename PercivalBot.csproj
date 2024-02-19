@@ -24,7 +24,7 @@
   
     <ItemGroup>
       <None Remove="Config.xml" />
-      <None Remove="EmbedStyles.xml" />
+      <None Remove="_Config\EmbedStyles.xml" />
     </ItemGroup>
 
 	<ItemGroup Condition=" '$(Configuration)' == 'Debug' ">

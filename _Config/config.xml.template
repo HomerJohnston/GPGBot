@@ -1,60 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config>
-<!--=========================================================================================-->
 
+	<!--====================================-->
+	<!-- if you specify localhost, then the bot will only receive commands from localhost. Specify * for global access. -->
+	<!-- Enter a password. Triggers and commands must supply the same password or they will be rejected. -->
 	<webserver>
-		<port>9000</port>
+		<address>*</address>
+		<port>1945</port>
 		<key>passphrase</key>
 	</webserver>
-
-	<!-- erase this section if not using discord -->
+	<!--====================================-->
 	<discord>
-		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
-		<defaultBuildStatusChannel>1234</defaultBuildStatusChannel>
-		<defaultCommitWebhook>https://discord.com/api/webhooks/webhookurl</defaultCommitWebhook>
+		<serverID>123456</serverID>
+		<token>abcdefg</token>
 	</discord>
-
-	<!-- erase this section if not using slack -->
-	<slack>
-		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
-		<defaultBuildStatusChannel>1234</defaultBuildStatusChannel>
-		<defaultCommitWebhook>https://discord.com/api/webhooks/webhookurl</defaultCommitWebhook>
-	</slack>
-
-	<!-- erase this section if not using teamcity -->
+	<!--====================================-->
 	<teamcity>
-		<address>http://serveraddress.port</address>
-		<user>ciloginuser</user>
-		<password></password>
-		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
+		<address>http://url:port</address>
+		<user>user</user>
+		<password>optional</password>
+		<token>abcdefg</token>
 	</teamcity>
-
-	<!-- erase this section if not using jenkins -->
-	<jenkins>
-		<address>http://serveraddress.port</address>
-		<user>ciloginuser</user>
-		<password></password>
-		<token>abcdefghijklmnopqrstuvwxyz123456789</token>
-	</jenkins>
-
-	<!-- erase this section if not using git -->
-	<git>
-		<address>serveraddress:port</address>
-		<user>perforceusername</user>
-		<password>perforceuserpassword</password>
-	</git>
-
-	<!-- erase this section if not using perforce -->
+	<!--====================================-->
 	<perforce>
-		<address>serveraddress:port</address>
-		<user>perforceusername</user>
-		<password>perforceuserpassword</password>
+		<address>url:port</address>
+		<user>perforceuser</user>
+		<password>perforcepassword</password>
 	</perforce>
-
-	<actions>
-		<spec stream="//Megacity/TestingMainline" buildConfigName="Megacity-TestBuild" buildPostChannel="default" commitWebhook="default"/>
-		<spec stream="//Megacity/Other" buildConfigName="Megacity-Other" buildPostChannel="default" commitWebhook="default"/>
-	</actions>
-
-<!--=========================================================================================-->
+	<!--====================================-->
+	<namedWebhooks>
+		<webhook name="webhook1">
+			<id>https://discord.com/api/webhooks/...</id>
+		</webhook>
+		<webhook name="webhook2">
+			<id>https://discord.com/api/webhooks/...</id>
+		</webhook>
+	</namedWebhooks>
+	<!--====================================-->
+	<!--====================================-->
+	<commitResponses>
+		<ignore>[ci]</ignore>
+		<ignore>[auto]</ignore>
+		<ignore>[jenkins]</ignore>
+		<ignore>[teamcity]</ignore>
+		<ignore>[build]</ignore>
+		<ignore>[x]</ignore>
+		<stream name="//Depot/Stream"/> <!-- this is a fallthrough spec - when absoluetely nothing is specified, it will use the next stream's settings -->
+		<stream name="//Depot/Stream">
+			<startBuild>TeamcityProject_BuildConfigName</startBuild>
+			<postWebhook>webhook1</postWebhook>
+		</stream>
+	</commitResponses>
+	<!--====================================-->
+	<ciJobs>
+		<build name="TeamcityProject_BuildConfigName">
+			<postChannel>name_of_discord_channel</postChannel>
+		</build>
+	</ciJobs>
+	<!--====================================-->
 </config>

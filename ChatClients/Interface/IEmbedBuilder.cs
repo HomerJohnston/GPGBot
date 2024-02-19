@@ -12,7 +12,7 @@ namespace PercivalBot.ChatClients.Interface
 {
     public interface IEmbedBuilder
     {
-        string GetBuildURL(string buildConfigName);
+        string GetBuildURL(string buildConfigName, string buildID);
 
         string GetConsoleURL(string buildConfigName, string buildID);
 

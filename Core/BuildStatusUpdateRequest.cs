@@ -40,40 +40,40 @@ namespace PercivalBot.Core
 		// --------------------------------------
 		public bool IsValid(out string error)
 		{
-			bool errorStatus = false;
+			bool valid = true;
 			error = string.Empty;
 
 			if (ChangeID == string.Empty)
 			{
-				errorStatus = true;
+				valid = false;
 				error = string.Join(", ", error, "ChangeID unset");
 			}
 
 			if (JobName == string.Empty)
 			{
-				errorStatus = true;
+				valid = false;
 				error = string.Join(", ", error, "JobName unset");
 			}
 
 			if (BuildNumber == string.Empty)
 			{
-				errorStatus = true;
+				valid = false;
 				error = string.Join(", ", error, "BuildNumber unset");
 			}
 
 			if (BuildID == string.Empty)
 			{
-				errorStatus = true;
+				valid = false;
 				error = string.Join(", ", error, "BuildID unset");
 			}
 
 			if (Status == EBuildStatus.NULL)
 			{
-				errorStatus = true;
+				valid = false;
 				error = String.Join(", ", error, "BuildStatus unset");
 			}
 
-			return errorStatus;
+			return valid;
 		}
 
 		// --------------------------------------

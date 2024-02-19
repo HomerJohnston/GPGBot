@@ -18,12 +18,17 @@ using PercivalBot.Structs;
 using Microsoft.VisualBasic;
 using Discord;
 
+
 namespace PercivalBot.Core
 {
-    public class Percival
+	using PostBuildDelegate = Func<HttpContextBase, BuildStatusUpdateRequest, BuildRecord, BuildJob, Task>;
+
+	public class Percival
     {
-        // --------------------------------------
-        public TaskCompletionSource<bool> runComplete = new();
+
+		#region Data Members
+		// --------------------------------------
+		public TaskCompletionSource<bool> runComplete = new();
 
         IVersionControlSystem versionControlSystem;
 
@@ -40,11 +45,13 @@ namespace PercivalBot.Core
         readonly List<string> commitIgnorePhrases = new();
         readonly List<Webhook> webhooks;
 
-        readonly Dictionary<BuildRecord, ulong> RunningBuildMessages = new();
-        readonly Dictionary<BuildJob, List<ulong>> PreviousBuildMessages = new();
+        readonly Dictionary<BuildRecord, ulong> BuildRunningMessages = new();
+        readonly Dictionary<BuildJob, List<ulong>> BuildCompletionMessages = new();
+		#endregion
 
-        // ---------------------------------------------------------------
-        public Percival(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, BotConfig config)
+		#region Construction/Destruction
+		// ---------------------------------------------------------------
+		public Percival(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, BotConfig config)
         {
             // Set up major components
             versionControlSystem = inVCS;
@@ -132,7 +139,7 @@ namespace PercivalBot.Core
 
             if (serverConfig.Address == null)
             {
-                Console.WriteLine($"Webserver address is not configured. Defaulting to listen on any address.");
+                LogSync($"Webserver address is not configured. Defaulting to listen on any address.");
             }
             else
             {
@@ -143,7 +150,7 @@ namespace PercivalBot.Core
 
             if (serverConfig.Port == null)
             {
-                Console.WriteLine($"Webserver port is not configured. Defaulting to {port}.");
+				LogSync($"Webserver port is not configured. Defaulting to {port}.");
             }
             else
             {
@@ -158,10 +165,11 @@ namespace PercivalBot.Core
 
             return hostBuilder.Build();
         }
+		#endregion
 
-        // --------------------------------------
-        #region WebAuth
-        async Task AuthenticateRequest(HttpContextBase context)
+		#region WebAuth
+		// --------------------------------------
+		async Task AuthenticateRequest(HttpContextBase context)
         {
             if (webserverKey == null)
             {
@@ -188,15 +196,17 @@ namespace PercivalBot.Core
         {
             string? incomingKey = context.Request.Headers["key"];
 
-            Console.WriteLine("Rejected incoming request" + (incomingKey != null ? ", invalid key: " + incomingKey : ", no key"));
-
-            context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
-            await context.Response.Send("Request denied. Required format: curl http://botaddress -H \"key:passphrase\"");
+            await LogAndReply(
+                "Rejected incoming request, " + ((incomingKey != null) ? ("invalid key: " + incomingKey) : ("no key")),
+				"Request denied. Required format: curl http://botaddress -H \"key:passphrase\"",
+                HttpStatusCode.Forbidden, 
+                context);
         }
-        #endregion
+		#endregion
 
-        // --------------------------------------
-        async Task OnCommit(HttpContextBase context)
+		#region Commit Response
+		// --------------------------------------
+		async Task OnCommit(HttpContextBase context)
         {
             var queryParams = GetQueryParams(context);
 
@@ -239,9 +249,9 @@ namespace PercivalBot.Core
 
             foreach (string ignorePhrase in commitIgnorePhrases)
             {
-                // TODO populate the ignores!
                 if (commitDescription.StartsWith(ignorePhrase, StringComparison.OrdinalIgnoreCase))
                 {
+                    // TODO LogAndReply
                     context.Response.StatusCode = (int)HttpStatusCode.OK;
                     await Log($"Ignored commit trigger for change {commit.Change}; found matching commit ignore");
                     await context.Response.Send($"Ignored commit trigger for change {commit.Change}; found matching commit ignore");
@@ -252,9 +262,13 @@ namespace PercivalBot.Core
 
             if (matchedCommits.Count == 0)
             {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+				// TODO LogAndReply
+
+				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 await Log($"No matching action specs found! Ignoring this commit.");
                 await context.Response.Send($"No matching action specs found! Ignoring this commit.");
+
+                return;
             }
 
             bool containedCode;
@@ -316,6 +330,7 @@ namespace PercivalBot.Core
 
             return await chatClient.PostCommitMessage(commitEmbedData, webhook.ID);
         }
+		#endregion
 
 		#region Build Status Updates
 		// --------------------------------------
@@ -333,22 +348,19 @@ namespace PercivalBot.Core
 
             if (!buildStatusUpdate.IsValid(out string error))
             {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-
-                string msg = $"BuildStatusUpdate POST was INVALID - {error}";
-
-				await Log(msg);
-                await context.Response.Send(msg);
+                await LogAndReply($"BuildStatusUpdate POST was INVALID - {error}", HttpStatusCode.BadRequest, context);
                 return;
             }
 
-            await HandleValidBuildStatusUpdate(context, buildStatusUpdate);
-        }
+			await Log($"OnBuildStatusUpdate: {buildStatusUpdate}");
 
+			await HandleValidBuildStatusUpdate(context, buildStatusUpdate);
+        }
+        
         // --------------------------------------
         private async Task HandleValidBuildStatusUpdate(HttpContextBase context, BuildStatusUpdateRequest update)
         {
-			await Log($"OnBuildStatusUpdate - Valid, changeID: {update.ChangeID}, jobName: {update.JobName}, buildNumber: {update.BuildNumber}, buildID: {update.BuildID}, buildStatus: {update.Status}");
+			await Log($"OnBuildStatusUpdate: {update}");
 
             List<BuildJob> matchedJobs = buildJobs.FindAll(spec => spec.Name == update.JobName);
 
@@ -373,14 +385,8 @@ namespace PercivalBot.Core
 
 			BuildRecord record = new BuildRecord(update.JobName, update.BuildNumber, update.BuildID);
 
-			if (update.Status == EBuildStatus.Running)
-            {
-                await PostBuildRunning(context, update, record, buildJob);
-            }
-            else
-            {
-                await PostBuildCompletion(context, update, record, buildJob);
-            }
+			PostBuildDelegate func = (update.Status == EBuildStatus.Running) ? PostBuildRunning : PostBuildCompletion;
+            await func(context, update, record, buildJob);
 
             if (!context.Response.ResponseSent)
             {
@@ -397,7 +403,7 @@ namespace PercivalBot.Core
 				return;
 			}
 
-			if (RunningBuildMessages.ContainsKey(record))
+			if (BuildRunningMessages.ContainsKey(record))
 			{
                 await LogAndReply($"Received multiple start signals for {update.JobName}, build {update.BuildID}, ignoring!", HttpStatusCode.BadRequest, context);
 				return;
@@ -411,7 +417,7 @@ namespace PercivalBot.Core
 				return;
 			}
 
-			RunningBuildMessages.Add(record, (ulong)message);
+			BuildRunningMessages.Add(record, (ulong)message);
 
             await LogAndReply($"Success", HttpStatusCode.OK, context);
 		}
@@ -421,7 +427,7 @@ namespace PercivalBot.Core
 		{
 			ulong runningMessage;
 
-			if (!RunningBuildMessages.TryGetValue(record, out runningMessage))
+			if (!BuildRunningMessages.TryGetValue(record, out runningMessage))
 			{
                 await LogAndReply($"Received a build status update for {update.JobName} build {update.BuildID} but there was no build in progress for this, ignoring!", HttpStatusCode.BadRequest, context);
 				return;
@@ -434,8 +440,7 @@ namespace PercivalBot.Core
 			}
 
 			await chatClient.DeleteMessage(runningMessage, buildJob.PostChannel);
-
-			RunningBuildMessages.Remove(record);
+			BuildRunningMessages.Remove(record);
 
 			ulong? message = await PostBuildStatus(update, buildJob.PostChannel);
 
@@ -445,26 +450,21 @@ namespace PercivalBot.Core
 				return;
 			}
 
-			if (update.Status != EBuildStatus.Succeeded)
+            if (update.Status == EBuildStatus.Succeeded)
 			{
-				PreviousBuildMessages.TryAdd(buildJob, new List<ulong>());
-				PreviousBuildMessages[buildJob].Add((ulong)message);
-			}
-			else
-			{
-				if (PreviousBuildMessages.TryGetValue(buildJob, out List<ulong>? existingMessages) && existingMessages != null)
+				if (BuildCompletionMessages.TryGetValue(buildJob, out List<ulong>? existingMessages) && existingMessages != null)
 				{
 					foreach (ulong existingMessage in existingMessages)
 					{
 						await chatClient.DeleteMessage(existingMessage, buildJob.PostChannel);
 					}
 
-					existingMessages.Clear();
-					existingMessages.Add((ulong)message);
+                    existingMessages.Clear();
 				}
 			}
 
-			RunningBuildMessages.Add(record, (ulong)message);
+			BuildCompletionMessages.TryAdd(buildJob, new List<ulong>());
+            BuildCompletionMessages[buildJob].Add((ulong)message);
 
 			await LogAndReply($"Success", HttpStatusCode.OK, context);
 		}
@@ -486,18 +486,9 @@ namespace PercivalBot.Core
         }
 		#endregion
 
+		#region Default Route
 		// --------------------------------------
-		public async Task Shutdown(HttpContextBase context)
-        {
-            await Log("Shutting down!");
-
-            await context.Response.Send("Bot: shutting down!");
-
-            runComplete.SetResult(true);
-        }
-
-        // --------------------------------------
-        async Task DefaultRoute(HttpContextBase context)
+		async Task DefaultRoute(HttpContextBase context)
         {
             context.Response.StatusCode = (int)HttpStatusCode.OK;
             await context.Response.Send(
@@ -513,10 +504,19 @@ namespace PercivalBot.Core
                 "    /build-status-update  params: jobName=...&buildID=...&buildStatus=running|succeeded|failed|unstable|aborted\n" +
                 "    /shutdown             params: (none required)"
             );
-        }
+		}
 
-        // --------------------------------------
-        static System.Collections.Specialized.NameValueCollection GetQueryParams(HttpContextBase context)
+		// --------------------------------------
+		async Task Shutdown(HttpContextBase context)
+		{
+			await LogAndReply("Shutting down!", HttpStatusCode.OK, context);
+			runComplete.SetResult(true);
+		}
+		#endregion
+
+		#region Utility Functions
+		// --------------------------------------
+		static System.Collections.Specialized.NameValueCollection GetQueryParams(HttpContextBase context)
         {
             Uri urlAsURI = new(context.Request.Url.Full);
             System.Collections.Specialized.NameValueCollection queryParams = HttpUtility.ParseQueryString(context.Request.DataAsString);// urlAsURI.Query);
@@ -524,24 +524,30 @@ namespace PercivalBot.Core
             return queryParams;
         }
 
-		private async Task LogAndReply(string msg, HttpStatusCode code, HttpContextBase context)
+		private static async Task LogAndReply(string msg, HttpStatusCode code, HttpContextBase context)
 		{
-			await Log(msg);
-
-			context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-			await context.Response.Send(msg);
+            await LogAndReply(msg, msg, code, context);
 		}
 
-		static void LogSync(string message)
+		private static async Task LogAndReply(string log, string reply, HttpStatusCode code, HttpContextBase context)
+		{
+			await Log(log);
+
+			context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+			await context.Response.Send(reply);
+		}
+
+		private static void LogSync(string message)
         {
             Console.WriteLine(message);
         }
 
 #pragma warning disable 1998
-        static async Task Log(string message)
+        private static async Task Log(string message)
         {
             Console.WriteLine(message);
         }
-    }
 #pragma warning restore 1998
+		#endregion
+	}
 }

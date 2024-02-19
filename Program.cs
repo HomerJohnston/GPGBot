@@ -14,17 +14,25 @@ using PercivalBot.Enums;
 using PercivalBot.Structs;
 using PercivalBot.ChatClients.Discord;
 using PercivalBot.ChatClients.Slack;
+using System.Threading;
+
+
+
 
 namespace PercivalBot
 {
     public class Program
 	{
+		static ManualResetEventSlim waitforProcessShutdown = new();
+		static ManualResetEventSlim waitForMainExit = new();
+
 		#region Main
 		// ========================================================================================
 		// Main variables
 		// ========================================================================================
 
-//#if Windows // Fun fact: VS's "publish" function won't fucking use these OS directives, thanks C#, so instead I'll just assume that I will only ever debug on windows...
+		// TODO I can probably get rid of all this legacy crap. AppDoman.CurrentDomain.ProcessExit
+		//#if Windows // Fun fact: VS's "publish" function won't fucking use these OS directives, thanks C#, so instead I'll just assume that I will only ever debug on windows...
 #if DEBUG
 		[DllImport("Kernel32")]
 		private static extern bool SetConsoleCtrlHandler(CloseEventHandler handler, bool add);
@@ -36,7 +44,12 @@ namespace PercivalBot
 		// ========================================================================================
 		public static async Task Main(string[] args)
 		{
-//#if Windows
+			AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
+			{
+				bot?.runComplete.SetResult(true);
+			};
+
+			//#if Windows
 #if DEBUG
 			Console.CancelKeyPress += HandleCancelKeyPress;
 			SetConsoleCtrlHandler(() => { return HandleClose(); }, true);
@@ -68,6 +81,7 @@ namespace PercivalBot
 
 		static void Shutdown()
 		{
+			Console.WriteLine("Program shutdown");
 			bot?.Stop();
 		}
 

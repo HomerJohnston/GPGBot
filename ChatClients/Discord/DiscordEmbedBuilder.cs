@@ -30,7 +30,7 @@ namespace PercivalBot.ChatClients.Discord
         // ========================================================================================
         // Settings
         // ========================================================================================
-        readonly string styleSource = "embedstyles.xml";
+        readonly string styleSource = "_Config/embedstyles.xml";
 
         // ========================================================================================
         // State
@@ -77,7 +77,7 @@ namespace PercivalBot.ChatClients.Discord
             config.GetSection("aborted").Bind(EmbedStyles[EBuildStatus.Aborted]);
         }
 
-        public virtual string GetBuildURL(string buildConfigName)
+        public virtual string GetBuildURL(string buildConfigName, string buildID)
         {
             return string.Empty;
         }
@@ -97,7 +97,7 @@ namespace PercivalBot.ChatClients.Discord
             string escapedBuildConfig = Uri.EscapeDataString(embedData.buildConfig);
             string escapedBuildID = Uri.EscapeDataString(embedData.buildID.ToString());
 
-            string buildWebURL = GetBuildURL(escapedBuildConfig);
+            string buildWebURL = GetBuildURL(escapedBuildConfig, escapedBuildID);
             string buildConsoleURL = GetConsoleURL(escapedBuildConfig, escapedBuildID);
             string buildChangesURL = GetChangesURL(escapedBuildConfig, escapedBuildID);
 

@@ -11,8 +11,6 @@ namespace PercivalBot.Structs
         public string jobName;
         public string buildNumber;
         public string buildID;
-        //public string changeID;
-        //public string user;
 
         public BuildRecord(string jobName, string buildNumber, string buildID)//, string changeID, string user)
         {
