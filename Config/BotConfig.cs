@@ -17,7 +17,7 @@ namespace PercivalBot.Config
 		public ChatClient chatClient = new();
 		public ContinuousIntegration ci = new();
 		public VersionControl vcs = new();
-		public CommitResponses commitResponses = new();
+		public VCSCommitResponses vcsCommitResponses = new();
 		public NamedWebhooks namedWebhooks = new();
 		public BuildJobs ciJobs = new();
 
@@ -46,8 +46,8 @@ namespace PercivalBot.Config
 
 			TryBind(config, "webserver", webserver);
 			TryBind(config, "namedWebhooks", namedWebhooks);
-			TryBind(config, "commitResponses", commitResponses);
-			TryBind(config, "ciJobs", ciJobs);
+			TryBind(config, "vcsCommitResponses", vcsCommitResponses);
+			TryBind(config, "ciBuildResponses", ciJobs);
 		}
 
 		// --------------------------------------

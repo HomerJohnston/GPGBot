@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace PercivalBot.Config
 {
-	public class CommitResponses
+	public class VCSCommitResponses
 	{
-		public List<CommitResponse>? Stream { get; set; }
-		public List<CommitResponse>? Branch { get; set; }
+		public List<VCSCommitResponse>? Stream { get; set; }
+		public List<VCSCommitResponse>? Branch { get; set; }
 
-		public List<CommitResponse> Responses
+		public List<VCSCommitResponse> Responses
 		{
 			get
 			{

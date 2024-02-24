@@ -41,8 +41,8 @@ namespace PercivalBot.Core
 
         // --------------------------------------
         readonly List<BuildJob> buildJobs;
-        readonly List<CommitResponse> commitResponses = new();
-        readonly List<string> commitIgnorePhrases = new();
+		readonly List<VCSCommitResponse> ignoreCommitResponses = new();
+		readonly List<VCSCommitResponse> commitResponses = new();
         readonly List<Webhook> webhooks;
 
         readonly Dictionary<BuildRecord, ulong> BuildRunningMessages = new();
@@ -60,45 +60,41 @@ namespace PercivalBot.Core
 
             // Set up other config data
 
-            if (config.commitResponses.Responses == null)
+            if (config.vcsCommitResponses.Responses == null)
             {
                 LogSync("Warning: no commit responses found in config file!");
-                commitResponses = new List<CommitResponse>();
+                commitResponses = new List<VCSCommitResponse>();
             }
             else
             {
-                List<CommitResponse> fallthroughResponses = new();
-
-                foreach (CommitResponse response in config.commitResponses.Responses)
+                foreach (VCSCommitResponse response in config.vcsCommitResponses.Responses)
                 {
-                    if (response.StartBuild == null && response.PostWebhook == null)
+                    if (response.Ignore == false & response.StartBuild == null && response.PostWebhook == null)
                     {
-                        fallthroughResponses.Add(response);
+                        LogSync($"Unconfigured commit response: {response.Name}");
                         continue;
                     }
 
-                    commitResponses.Add(response);
-
-                    foreach (CommitResponse fallthroughResponse in fallthroughResponses)
+                    if (response.Ignore && (response.StartBuild != null || response.PostWebhook != null))
                     {
-                        fallthroughResponse.StartBuild = response.StartBuild;
-                        fallthroughResponse.PostWebhook = response.PostWebhook;
-                        commitResponses.Add(fallthroughResponse);
+                        LogSync($"Improperly configured commit response had both ignore and startBuild or postWebHook entered: {response.Name}");
+                        continue;
                     }
-                }
+
+                    if (response.Ignore)
+                    {
+                        LogSync($"Ignore response added, {response}");
+                        ignoreCommitResponses.Add(response);
+                    }
+                    else
+                    {
+						LogSync($"Commit response added, {response}");
+						commitResponses.Add(response);
+					}
+				}
             }
 
-            if (config.commitResponses.Ignore == null)
-            {
-                LogSync("No commit ignore phrases found in config file.");
-                commitIgnorePhrases = new List<string>();
-            }
-            else
-            {
-                commitIgnorePhrases.AddRange(config.commitResponses.Ignore);
-            }
-
-            buildJobs = config.ciJobs.Build ?? new();
+            buildJobs = config.ciJobs.Job ?? new();
             webhooks = config.namedWebhooks.Webhook ?? new();
 
             // Set up HTTP server
@@ -243,31 +239,20 @@ namespace PercivalBot.Core
 		{
 			await Log($"OnCommit: {commit}");
 
-			List<CommitResponse> matchedCommits = commitResponses.FindAll(spec => spec.Name == commit.Branch);
+            // if any ignore specs match with this commit
+            if (ignoreCommitResponses.Any(spec => (spec.Name != null) && commit.Branch.StartsWith(spec.Name)))
+			{
+                await LogAndReply($"Ignored commit trigger for change {commit.Change}; found matching commit ignore", HttpStatusCode.OK, context);
+				return;
+			}
+
+			List<VCSCommitResponse> matchedCommits = commitResponses.FindAll(spec => (spec.Name != null) && commit.Branch.StartsWith(spec.Name));
 
             string commitDescription = versionControlSystem.GetCommitDescription(commit.Change) ?? "<No description>";
 
-            foreach (string ignorePhrase in commitIgnorePhrases)
-            {
-                if (commitDescription.StartsWith(ignorePhrase, StringComparison.OrdinalIgnoreCase))
-                {
-                    // TODO LogAndReply
-                    context.Response.StatusCode = (int)HttpStatusCode.OK;
-                    await Log($"Ignored commit trigger for change {commit.Change}; found matching commit ignore");
-                    await context.Response.Send($"Ignored commit trigger for change {commit.Change}; found matching commit ignore");
-
-                    return;
-                }
-            }
-
             if (matchedCommits.Count == 0)
             {
-				// TODO LogAndReply
-
-				context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                await Log($"No matching action specs found! Ignoring this commit.");
-                await context.Response.Send($"No matching action specs found! Ignoring this commit.");
-
+                await LogAndReply($"No matching action specs found! Ignoring this commit.", HttpStatusCode.OK, context);
                 return;
             }
 
@@ -280,7 +265,7 @@ namespace PercivalBot.Core
             // Simple work to avoid posting the same commit twice
             HashSet<string> commitPostedTo = new();
 
-            foreach (CommitResponse spec in matchedCommits)
+            foreach (VCSCommitResponse spec in matchedCommits)
             {
                 if (spec.PostWebhook != null && !commitPostedTo.Contains(spec.PostWebhook))
                 {
@@ -306,8 +291,7 @@ namespace PercivalBot.Core
                 }
             }
 
-            context.Response.StatusCode = (int)HttpStatusCode.OK;
-            await context.Response.Send($"OnCommit: change {commit.Change}, client {commit.Client}, user {commit.User}, stream/branch {commit.Branch}, buildCode {containedCode}, buildWwise {containedWwise}");
+            await LogAndReply($"OnCommit: change {commit.Change}, client {commit.Client}, user {commit.User}, stream/branch {commit.Branch}, buildCode {containedCode}, buildWwise {containedWwise}", HttpStatusCode.OK, context);
         }
 
         // --------------------------------------
@@ -351,8 +335,6 @@ namespace PercivalBot.Core
                 await LogAndReply($"BuildStatusUpdate POST was INVALID - {error}", HttpStatusCode.BadRequest, context);
                 return;
             }
-
-			await Log($"OnBuildStatusUpdate: {buildStatusUpdate}");
 
 			await HandleValidBuildStatusUpdate(context, buildStatusUpdate);
         }
@@ -533,7 +515,7 @@ namespace PercivalBot.Core
 		{
 			await Log(log);
 
-			context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+			context.Response.StatusCode = (int)code;
 			await context.Response.Send(reply);
 		}
 
