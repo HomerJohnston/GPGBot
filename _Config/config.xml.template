@@ -1,61 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config>
 
-	<!--====================================-->
-	<!-- if you specify localhost, then the bot will only receive commands from localhost. Specify * for global access. -->
-	<!-- Enter a password. Triggers and commands must supply the same password or they will be rejected. -->
-	<webserver>
-		<address>*</address>
-		<port>1945</port>
-		<key>passphrase</key>
-	</webserver>
-	<!--====================================-->
-	<discord>
-		<serverID>123456</serverID>
-		<token>abcdefg</token>
-	</discord>
-	<!--====================================-->
-	<teamcity>
-		<address>http://url:port</address>
-		<user>user</user>
-		<password>optional</password>
-		<token>abcdefg</token>
-	</teamcity>
-	<!--====================================-->
-	<perforce>
-		<address>url:port</address>
-		<user>perforceuser</user>
-		<password>perforcepassword</password>
-	</perforce>
-	<!--====================================-->
-	<namedWebhooks>
-		<webhook name="webhook1">
-			<id>https://discord.com/api/webhooks/...</id>
-		</webhook>
-		<webhook name="webhook2">
-			<id>https://discord.com/api/webhooks/...</id>
-		</webhook>
-	</namedWebhooks>
-	<!--====================================-->
-	<!--====================================-->
-	<commitResponses>
-		<ignore>[ci]</ignore>
-		<ignore>[auto]</ignore>
-		<ignore>[jenkins]</ignore>
-		<ignore>[teamcity]</ignore>
-		<ignore>[build]</ignore>
-		<ignore>[x]</ignore>
-		<stream name="//Depot/Stream"/> <!-- this is a fallthrough spec - when absoluetely nothing is specified, it will use the next stream's settings -->
-		<stream name="//Depot/Stream">
-			<startBuild>TeamcityProject_BuildConfigName</startBuild>
-			<postWebhook>webhook1</postWebhook>
-		</stream>
-	</commitResponses>
-	<!--====================================-->
-	<ciJobs>
-		<build name="TeamcityProject_BuildConfigName">
-			<postChannel>name_of_discord_channel</postChannel>
-		</build>
-	</ciJobs>
-	<!--====================================-->
+        <!--====================================-->
+        <!-- if you specify localhost, then the bot will only receive commands from localhost. Specify * for global access. -->
+        <!-- Enter a password. Triggers and commands must supply the same password or they will be rejected. -->
+        <webserver>
+                <address>*</address>
+                <port>1919</port>
+                <key>passphrase</key>
+        </webserver>
+        <!--====================================-->
+        <discord>
+                <serverID>1234</serverID>
+                <token>ABCD</token>
+        </discord>
+        <!--====================================-->
+        <teamcity>
+                <address>http://serverAddress.com:Port</address>
+                <user>LoginName</user>
+                <password>OptionalPassword</password>
+                <token>ABCD</token>
+        </teamcity>
+        <!--====================================-->
+        <perforce>
+                <address>serverAddress:port</address>
+                <user>LoginName</user>
+                <password>Password</password>
+        </perforce>
+        <!--====================================-->
+        <namedWebhooks>
+                <webhook name="ThisIsANamedWebhook1">
+                        <id>https://discord.com/api/webhooks/1234/ABCD</id>
+                </webhook>
+                <webhook name="ThisIsANamedWebhook2">
+                        <id>https://discord.com/api/webhooks/1234/ABCD</id>
+                </webhook>
+        </namedWebhooks>
+        <!--====================================-->
+        <vcsCommitResponses>
+                <stream name="//Depot/Stream/PathToIgnore">
+                        <ignore>true</ignore>
+                </stream>
+                <stream name="//Depot/Stream/"> <!-- partial matches - this would match anything under this, like //Depot/Stream/Mainline -->
+                        <startBuild>CIProject_BuildConfigName</startBuild>
+                        <postWebhook>ThisIsANamedWebhook1</postWebhook>
+                </stream>
+        </vcsCommitResponses>
+        <!--====================================-->
+        <ciBuildResponses>
+                <job name="CIProject_BuildConfigName">
+                        <postChannel>discord-channel-name</postChannel>
+                </job>
+        </ciBuildResponses>
+        <!--====================================-->
 </config>
