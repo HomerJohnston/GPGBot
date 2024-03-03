@@ -14,7 +14,7 @@ namespace PercivalBot.ContinuousIntegration
 		protected readonly string password;
 		protected readonly string token;
 
-		public BaseCI(Config.ContinuousIntegration config)
+		public BaseCI(Config.ContinuousIntegrationConfig config)
 		{
 			if (config.Address == null)
 			{

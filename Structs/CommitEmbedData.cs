@@ -13,6 +13,5 @@ namespace PercivalBot.Structs
 		public string user;
 		public string client;
 		public string description;
-		public bool containsCode;
 	}
 }

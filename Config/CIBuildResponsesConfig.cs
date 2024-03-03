@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace PercivalBot.Config
 {
-	public class NamedWebhooks
+	public class CIBuildResponsesConfig
 	{
-		public List<Webhook>? Webhook { get; set; }
+		public List<CIBuildResponseConfig>? Job { get; set; }
 	}
 }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PercivalBot.Config
 {
-	public class Webhook
+	public class WebhookConfig
 	{
 		public string? Name { get; set; }
 		public string? ID { get; set; }

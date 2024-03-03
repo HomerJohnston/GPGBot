@@ -9,7 +9,7 @@ namespace PercivalBot.ContinuousIntegration
 {
     public class JenkinsCI : BaseCI, IContinuousIntegrationSystem
 	{
-		public JenkinsCI(Config.ContinuousIntegration config) : base(config)
+		public JenkinsCI(Config.ContinuousIntegrationConfig config) : base(config)
 		{
 		}
 

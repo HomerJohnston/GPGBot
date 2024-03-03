@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<embeds>
+<config>
+	<commit>
+		<iconURL>https://i.imgur.com/TzA17kl.png</iconURL>
+		<color>1094111</color>
+	</commit>
+	<commitAndBuild>
+		<iconURL>https://i.imgur.com/TzA17kl.png</iconURL>
+		<color>1094111</color>
+	</commitAndBuild>
 	<running>
 		<iconURL>https://i.imgur.com/oAeRyVK.png</iconURL>
 		<color>0</color><!--,#'0x000000'</color>-->
@@ -30,4 +38,4 @@
 		<title>Aborted</title>
 		<description>Aborted updating to</description>
 	</aborted>
-</embeds>
+</config>

@@ -1,4 +1,5 @@
-﻿using PercivalBot.Enums;
+﻿using PercivalBot.Config;
+using PercivalBot.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,5 +15,6 @@ namespace PercivalBot.Structs
 		public string buildNumber;
 		public string buildID;
 		public EBuildStatus buildStatus;
+		public EmbedStyleConfig embedStyle;
 	}
 }

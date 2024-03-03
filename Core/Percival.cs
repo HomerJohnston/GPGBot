@@ -21,7 +21,7 @@ using Discord;
 
 namespace PercivalBot.Core
 {
-	using PostBuildDelegate = Func<HttpContextBase, BuildStatusUpdateRequest, BuildRecord, BuildJob, Task>;
+	using PostBuildDelegate = Func<HttpContextBase, BuildStatusUpdateRequest, BuildRecord, CIBuildResponseConfig, Task>;
 
 	public class Percival
     {
@@ -40,18 +40,18 @@ namespace PercivalBot.Core
         string? webserverKey;
 
         // --------------------------------------
-        readonly List<BuildJob> buildJobs;
+        readonly List<CIBuildResponseConfig> buildJobs;
 		readonly List<VCSCommitResponse> ignoreCommitResponses = new();
 		readonly List<VCSCommitResponse> commitResponses = new();
-        readonly List<Webhook> webhooks;
+        readonly List<WebhookConfig> webhooks;
 
         readonly Dictionary<BuildRecord, ulong> BuildRunningMessages = new();
-        readonly Dictionary<BuildJob, List<ulong>> BuildCompletionMessages = new();
+        readonly Dictionary<CIBuildResponseConfig, List<ulong>> BuildCompletionMessages = new();
 		#endregion
 
 		#region Construction/Destruction
 		// ---------------------------------------------------------------
-		public Percival(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, BotConfig config)
+		public Percival(IVersionControlSystem inVCS, IContinuousIntegrationSystem inCI, IChatClient inChatClient, PercivalConfig config)
         {
             // Set up major components
             versionControlSystem = inVCS;
@@ -60,7 +60,7 @@ namespace PercivalBot.Core
 
             // Set up other config data
 
-            if (config.vcsCommitResponses.Responses == null)
+            if (config.vcsCommitResponses?.Responses == null)
             {
                 LogSync("Warning: no commit responses found in config file!");
                 commitResponses = new List<VCSCommitResponse>();
@@ -94,10 +94,15 @@ namespace PercivalBot.Core
 				}
             }
 
-            buildJobs = config.ciJobs.Job ?? new();
-            webhooks = config.namedWebhooks.Webhook ?? new();
+            buildJobs = config.ciBuildResponses?.Job ?? new();
+            webhooks = config.namedWebhooks?.Webhook ?? new();
 
-            // Set up HTTP server
+			// Set up HTTP server
+			if (config.webserver == null)
+			{
+				throw new Exception("No webserver config!");
+			}
+
             WebserverConfig webserverConfig = config.webserver;
 
             webserver = BuildWebServer(webserverConfig);
@@ -297,7 +302,7 @@ namespace PercivalBot.Core
         // --------------------------------------
         private async Task<ulong?> PostCommitMessage(string change, string user, string branch, string client, string commitWebhook, string description, bool doBuild)
         {
-            Webhook? webhook = webhooks.Find(x => x.Name == commitWebhook);
+            WebhookConfig? webhook = webhooks.Find(x => x.Name == commitWebhook);
 
             if (webhook == null || webhook.ID == null)
             {
@@ -310,7 +315,6 @@ namespace PercivalBot.Core
             commitEmbedData.branch = branch;
             commitEmbedData.client = client;
             commitEmbedData.description = description;
-            commitEmbedData.containsCode = doBuild;
 
             return await chatClient.PostCommitMessage(commitEmbedData, webhook.ID);
         }
@@ -344,9 +348,11 @@ namespace PercivalBot.Core
         {
 			await Log($"OnBuildStatusUpdate: {update}");
 
-            List<BuildJob> matchedJobs = buildJobs.FindAll(spec => spec.Name == update.JobName);
+            List<CIBuildResponseConfig> matchedJobs = buildJobs.FindAll(spec => spec.Name == update.JobName);
 
-            if (matchedJobs.Count == 0)
+			await Log($"TEST 1: {update}");
+
+			if (matchedJobs.Count == 0)
             {
 				await LogAndReply($"Config warning: found no build jobs named {update.JobName} in config entries to post status for!\n", HttpStatusCode.InternalServerError, context);
 				return;
@@ -357,15 +363,23 @@ namespace PercivalBot.Core
 				return;
 			}
 
-            BuildJob buildJob = matchedJobs.First();
+			await Log($"TEST 2: {update}");
 
-            if (buildJob.PostChannel == null)
+			CIBuildResponseConfig buildJob = matchedJobs.First();
+
+			await Log($"TEST 3: {buildJob.Name}");
+
+			if (buildJob.PostChannel == null)
             {
                 await LogAndReply($"Config warning: {update.JobName} has no post channel set!", HttpStatusCode.InternalServerError, context);
                 return;
             }
 
+			await Log($"TEST 4: {buildJob.Name}");
+
 			BuildRecord record = new BuildRecord(update.JobName, update.BuildNumber, update.BuildID);
+
+			await Log($"TEST 5: {buildJob.Name}");
 
 			PostBuildDelegate func = (update.Status == EBuildStatus.Running) ? PostBuildRunning : PostBuildCompletion;
             await func(context, update, record, buildJob);
@@ -377,13 +391,17 @@ namespace PercivalBot.Core
         }
 
 		// --------------------------------------
-		private async Task PostBuildRunning(HttpContextBase context, BuildStatusUpdateRequest update, BuildRecord record, BuildJob buildJob)
+		private async Task PostBuildRunning(HttpContextBase context, BuildStatusUpdateRequest update, BuildRecord record, CIBuildResponseConfig buildJob)
 		{
-            if (buildJob.PostChannel == null)
+			await Log($"TEST 6: {buildJob.Name}");
+
+			if (buildJob.PostChannel == null)
 			{
                 await LogAndReply($"Config warning: {buildJob.Name} has no post channel set!",  HttpStatusCode.BadRequest, context);
 				return;
 			}
+
+			await Log($"TEST 7: {buildJob.Name}");
 
 			if (BuildRunningMessages.ContainsKey(record))
 			{
@@ -391,7 +409,11 @@ namespace PercivalBot.Core
 				return;
 			}
 
+			await Log($"TEST 8: {buildJob.Name}");
+
 			ulong? message = await PostBuildStatus(update, buildJob.PostChannel);
+
+			await Log($"TEST 9: {buildJob.Name}");
 
 			if (message == null)
 			{
@@ -399,13 +421,15 @@ namespace PercivalBot.Core
 				return;
 			}
 
+			await Log($"TEST 10: {buildJob.Name}");
+
 			BuildRunningMessages.Add(record, (ulong)message);
 
             await LogAndReply($"Success", HttpStatusCode.OK, context);
 		}
 
 		// --------------------------------------
-		private async Task PostBuildCompletion(HttpContextBase context, BuildStatusUpdateRequest update, BuildRecord record, BuildJob buildJob)
+		private async Task PostBuildCompletion(HttpContextBase context, BuildStatusUpdateRequest update, BuildRecord record, CIBuildResponseConfig buildJob)
 		{
 			ulong runningMessage;
 

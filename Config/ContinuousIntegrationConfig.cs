@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace PercivalBot.Config
 {
-	public class ContinuousIntegration
+	public class ContinuousIntegrationConfig
 	{
 		public EContinuousIntegrationSoftware System { get; set; }
 		public string? Address { get; set; }

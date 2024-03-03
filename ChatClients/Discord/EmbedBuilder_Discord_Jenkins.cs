@@ -10,9 +10,9 @@ using PercivalBot.ChatClients.Discord;
 
 namespace PercivalBot.ChatClients.Discord
 {
-    public class DiscordEmbedBuilder_Jenkins : DiscordEmbedBuilder, IEmbedBuilder
+    public class EmbedBuilder_Discord_Jenkins : EmbedBuilder_Discord, IEmbedBuilder
     {
-        public DiscordEmbedBuilder_Jenkins(string webURL) : base(webURL)
+        public EmbedBuilder_Discord_Jenkins(string webURL) : base(webURL)
         {
         }
 

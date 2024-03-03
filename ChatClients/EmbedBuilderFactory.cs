@@ -15,7 +15,7 @@ namespace PercivalBot.ChatClients
 {
     public class EmbedBuilderFactory
     {
-        public static IEmbedBuilder Build(ChatClient chatConfig, Config.ContinuousIntegration ciConfig)
+        public static IEmbedBuilder Build(ChatClientConfig chatConfig, ContinuousIntegrationConfig ciConfig)
         {
             if (ciConfig.Address == null)
             {
@@ -25,33 +25,32 @@ namespace PercivalBot.ChatClients
             switch (chatConfig.System)
             {
                 case EChatClient.Discord:
+                {
+                    switch (ciConfig.System)
                     {
-                        switch (ciConfig.System)
+                        case EContinuousIntegrationSoftware.Jenkins:
                         {
-                            case EContinuousIntegrationSoftware.Jenkins:
-                                {
-                                    return new DiscordEmbedBuilder_Jenkins(ciConfig.Address);
-                                }
-                            case EContinuousIntegrationSoftware.TeamCity:
-                                {
-                                    return new DiscordEmbedBuilder_TeamCity(ciConfig.Address);
-                                }
-                            default:
-                                {
-                                    throw new Exception("CI Software was invalid! Check config?");
-                                }
+                            return new EmbedBuilder_Discord_Jenkins(ciConfig.Address);
+                        }
+                        case EContinuousIntegrationSoftware.TeamCity:
+                        {
+                            return new EmbedBuilder_Discord_TeamCity(ciConfig.Address);
+                        }
+                        default:
+                        {
+                            throw new Exception("CI Software was invalid! Check config?");
                         }
                     }
+                }
                 case EChatClient.Slack:
-                    {
-                        throw new NotImplementedException();
-                    }
+                {
+                    throw new NotImplementedException();
+                }
                 default:
-                    {
-                        throw new Exception("Chat client was invalid! Check config?");
-                    }
+                {
+                    throw new Exception("Chat client was invalid! Check config?");
+                }
             }
-
         }
     }
 }

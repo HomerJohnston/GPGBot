@@ -9,7 +9,7 @@ using PercivalBot.Structs;
 
 namespace PercivalBot.ChatClients.Slack
 {
-    public class SlackClient : IChatClient
+    public class ChatClient_Slack : IChatClient
     {
         public Task DeleteMessage(ulong messageID, string channelName)
         {

@@ -16,9 +16,6 @@ using PercivalBot.ChatClients.Discord;
 using PercivalBot.ChatClients.Slack;
 using System.Threading;
 
-
-
-
 namespace PercivalBot
 {
     public class Program
@@ -101,14 +98,15 @@ namespace PercivalBot
 		// ========================================================================================
 		async Task ProgramMain()
 		{
-			BotConfig config = new BotConfig(configSource);
+			ProgramConfig config = new ProgramConfig(configSource);
 
 			// Spawn systems
-			IChatClient chatClient = CreateChatClient(config.chatClient, config.ci);
+			IEmbedBuilder embedBuilder = EmbedBuilderFactory.Build(config.chatClient, config.ci);
+			IChatClient chatClient = CreateChatClient(config.chatClient, embedBuilder);
 			IVersionControlSystem vcs = CreateVersionControlSystem(config.vcs);
 			IContinuousIntegrationSystem cis = CreateContinuousIntegrationSystem(config.ci);
 
-			bot = new(vcs, cis, chatClient, config);
+			bot = new(vcs, cis, chatClient, config.percivalConfig);
 			await bot.Start();
 
 			Console.WriteLine("\n" +
@@ -119,7 +117,7 @@ namespace PercivalBot
 		}
 
 		// --------------------------------------
-		private IVersionControlSystem CreateVersionControlSystem(Config.VersionControl config)
+		private IVersionControlSystem CreateVersionControlSystem(VersionControlConfig config)
 		{
 			switch (config.System)
 			{
@@ -137,7 +135,7 @@ namespace PercivalBot
 		}
 
 		// --------------------------------------
-		private IContinuousIntegrationSystem CreateContinuousIntegrationSystem(Config.ContinuousIntegration config)
+		private IContinuousIntegrationSystem CreateContinuousIntegrationSystem(ContinuousIntegrationConfig config)
 		{
 			switch (config.System)
 			{
@@ -155,15 +153,13 @@ namespace PercivalBot
 		}
 
 		// --------------------------------------
-		private IChatClient CreateChatClient(Config.ChatClient chatClientConfig, Config.ContinuousIntegration ciConfig)
+		private IChatClient CreateChatClient(ChatClientConfig chatClientConfig, IEmbedBuilder embedBuilder)
 		{
-			IEmbedBuilder embedBuilder = EmbedBuilderFactory.Build(chatClientConfig, ciConfig);
-
 			switch (chatClientConfig.System)
 			{
 				case EChatClient.Discord:
 				{
-					return new DiscordClient(chatClientConfig, embedBuilder);
+					return new ChatClient_Discord(chatClientConfig, embedBuilder);
 				}
 				case EChatClient.Slack:
 				{

@@ -13,7 +13,7 @@ namespace PercivalBot.ContinuousIntegration
 {
     public class TeamCityCI : BaseCI, IContinuousIntegrationSystem
 	{
-		public TeamCityCI(Config.ContinuousIntegration config) : base(config)
+		public TeamCityCI(Config.ContinuousIntegrationConfig config) : base(config)
 		{
 		}
 

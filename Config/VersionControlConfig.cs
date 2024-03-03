@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace PercivalBot.Config
 {
-	public class VersionControl
+	public class VersionControlConfig
 	{
 		public EVersionControlSystem System { get; set; }
 		public string? Address { get; set; }

@@ -6,9 +6,12 @@ using System.Threading.Tasks;
 
 namespace PercivalBot.Config
 {
-	public struct BuildJob
+	public class EmbedStyleConfig
 	{
 		public string? Name { get; set; }
-		public string? PostChannel { get; set; }
+		public string? IconUrl { get; set; }
+		public string? Color { get; set; }
+		public string? Title { get; set; }
+		public string? Description { get; set; }
 	}
 }

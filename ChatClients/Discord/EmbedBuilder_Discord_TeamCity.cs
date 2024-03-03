@@ -6,9 +6,9 @@ using System;
 
 namespace PercivalBot.ChatClients.Discord
 {
-    public class DiscordEmbedBuilder_TeamCity : DiscordEmbedBuilder, IEmbedBuilder
+    public class EmbedBuilder_Discord_TeamCity : EmbedBuilder_Discord, IEmbedBuilder
     {
-        public DiscordEmbedBuilder_TeamCity(string webURL) : base(webURL)
+        public EmbedBuilder_Discord_TeamCity(string webURL) : base(webURL)
         {
         }
 

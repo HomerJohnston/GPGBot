@@ -5,6 +5,8 @@ VisualStudioVersion = 17.6.33801.468
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PercivalBot", "PercivalBot.csproj", "{A5C29AC2-C04E-4F22-B11E-40D6E214B829}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PercivalBotTests", "..\PercivalBotTests\PercivalBotTests.csproj", "{4A4C95FC-C401-4243-A151-A00E11635175}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{A5C29AC2-C04E-4F22-B11E-40D6E214B829}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A5C29AC2-C04E-4F22-B11E-40D6E214B829}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A5C29AC2-C04E-4F22-B11E-40D6E214B829}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A4C95FC-C401-4243-A151-A00E11635175}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A4C95FC-C401-4243-A151-A00E11635175}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A4C95FC-C401-4243-A151-A00E11635175}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A4C95FC-C401-4243-A151-A00E11635175}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

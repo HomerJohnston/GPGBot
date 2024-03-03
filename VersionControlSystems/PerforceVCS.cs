@@ -25,7 +25,7 @@ namespace PercivalBot.VersionControlSystems
 		readonly string user;
 		readonly string password;
 		
-		public PerforceVCS(Config.VersionControl config)
+		public PerforceVCS(Config.VersionControlConfig config)
 		{
 			if (config.Address == null || config.User == null || config.Password == null)
 			{

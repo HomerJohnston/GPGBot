@@ -9,7 +9,7 @@ namespace PercivalBot.VersionControlSystems
 {
     internal class GitVCS : IVersionControlSystem
 	{
-		public GitVCS(Config.VersionControl config)
+		public GitVCS(Config.VersionControlConfig config)
 		{
 			throw new NotImplementedException();
 		}

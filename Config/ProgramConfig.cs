@@ -10,19 +10,16 @@ using static System.Collections.Specialized.BitVector32;
 
 namespace PercivalBot.Config
 {
-	public class BotConfig
+	public class ProgramConfig
 	{
 		// --------------------------------------
-		public WebserverConfig webserver = new();
-		public ChatClient chatClient = new();
-		public ContinuousIntegration ci = new();
-		public VersionControl vcs = new();
-		public VCSCommitResponses vcsCommitResponses = new();
-		public NamedWebhooks namedWebhooks = new();
-		public BuildJobs ciJobs = new();
+		public PercivalConfig percivalConfig = new();
+		public ContinuousIntegrationConfig ci = new();
+		public VersionControlConfig vcs = new();
+		public ChatClientConfig chatClient = new();
 
 		// --------------------------------------
-		public BotConfig(string configSource = "config.xml")
+		public ProgramConfig(string configSource = "config.xml")
 		{
 			IConfigurationRoot config = new ConfigurationManager()
 				.AddXmlFile(configSource, false, false)
@@ -44,10 +41,7 @@ namespace PercivalBot.Config
 			TryBindExclusive(perforceSection, gitSection, vcs);
 			vcs.System = (perforceSection.Exists() ? EVersionControlSystem.Perforce : EVersionControlSystem.Git);
 
-			TryBind(config, "webserver", webserver);
-			TryBind(config, "namedWebhooks", namedWebhooks);
-			TryBind(config, "vcsCommitResponses", vcsCommitResponses);
-			TryBind(config, "ciBuildResponses", ciJobs);
+			TryBind(config, "percival", percivalConfig);
 		}
 
 		// --------------------------------------
